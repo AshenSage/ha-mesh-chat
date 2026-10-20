@@ -97,12 +97,35 @@ Technical references: Espressif documents the [factory eFuse MAC](https://docs.e
 
 A complete project backup includes both profiles' identity keys and identifiers, settings, channel keys, supported contacts/peer data, all recorded HA conversations, contact links, favourites, outbox, notification settings, schedules and firmware/backup version metadata. Protect private keys in storage and exports.
 
+### Accepted backup policy
+
+- Capture each profile after its first setup and after confirmed changes to identity, channels or settings; capture a verified recovery point before firmware updates.
+- Create a complete project backup daily and retain the latest **10 successful complete backup states per radio**. Failed attempts must not displace usable backups.
+- Include project data in regular HA backups and offer downloadable protected exports.
+- Persist chat messages continuously in HA; periodic backups provide separate recovery points.
+- Use the inactive profile's last confirmed snapshot without forcing a network switch just to back it up. Display the capture time and completeness for each profile, plus the last successful complete backup.
+
 Ordinary firmware selection should retain isolated profile storage and commit HA state without reinstalling or restoring a full backup. Fault recovery and device replacement use a separate restore workflow.
 
 For replacement, require another Heltec V4 of the same model and variant, validate its firmware, restore supported data, then read back and compare identity keys/identifiers. Reconcile queued and uncertain sends before resuming. Retire the old radio before activating its identity on the replacement.
 
 Cross-model migration is outside scope. Export of every firmware field and full identity preservation across supported versions still require validation. Meshtastic provides documented [configuration and identity-key backup/restore](https://meshtastic.org/docs/configuration/radio/security/); MeshCore export/import support and completeness must be verified for our chosen builds.
 
+## HA outage and message recovery
+
+The accepted baseline is to pause scheduled switching while HA/the controlling service is unavailable. A powered radio should remain on the last selected firmware. An independent outage scheduler is outside this baseline. Full host power loss may also remove USB power; reception during that period must not be assumed.
+
+On startup or reconnection:
+
+1. Identify the actual running firmware and reconnect its backend before applying a different schedule target.
+2. Attempt to retrieve all messages still available from that firmware's receive queue/history, using a bounded synchronization pass.
+3. Commit retrieved messages durably to HA, retain original network/identity/timestamp information where available and deduplicate replays before considering the import complete.
+4. Finish the recovery/synchronization phase, then apply the schedule appropriate to the current time. Do not replay missed switches.
+
+Apply the same inbound synchronization step before ordinary firmware switches. On synchronization or HA storage failure, defer an automatic switch, use bounded retries and show the reason. Display progress such as "Recovering messages" and keep recovered history available.
+
+Distinguish completed retrieval, no pending messages, unsupported retrieval and errors. Firmware buffering, retention across reboots, destructive queue reads and recoverable history must be validated per build; this feature cannot reconstruct messages the radio no longer holds or messages never received on the inactive network. Define the unsupported-retrieval fallback and exact time/retry limits before release.
+
 ## Release evidence
 
-Demonstrate both-network onboarding, repeated switches with intact identities and histories, restart-safe outbox/snooze behaviour, interrupted-installation recovery and complete restoration to a second Heltec V4 of the same model and variant. Run the complete acceptance flow on both Proxmox/HAOS (amd64) and Raspberry Pi/HAOS (aarch64), including new-board installation, reinstallation over existing firmware and recovery. Also verify replacement with the old radio disconnected/unavailable, reconnect recognition, changed-identity detection, missing/stale backup handling and preservation of an existing single-firmware profile during dual-boot conversion. Confirm installation on another household's HA system.
+Demonstrate both-network onboarding, repeated switches with intact identities and histories, restart-safe outbox/snooze behaviour, interrupted-installation recovery and complete restoration to a second Heltec V4 of the same model and variant. Run the complete acceptance flow on both Proxmox/HAOS (amd64) and Raspberry Pi/HAOS (aarch64), including new-board installation, reinstallation over existing firmware and recovery. Also verify replacement with the old radio disconnected/unavailable, reconnect recognition, changed-identity detection, missing/stale backup handling and preservation of an existing single-firmware profile during dual-boot conversion. Verify the backup triggers, 10-state retention, HA-backup inclusion/export and per-profile snapshot age. Test restart/reconnect with an inbound backlog: import and durable storage must precede a schedule-driven reboot; exercise duplicate retrieval, continuous incoming traffic, read/storage failures and unsupported retrieval. Confirm installation on another household's HA system.
