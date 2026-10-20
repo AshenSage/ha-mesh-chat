@@ -6,9 +6,20 @@ Accepted describes the desired product, not verified technical support. Firmware
 
 ## Hardware scope
 
-The sole development, support and test target is the **Heltec WiFi LoRa 32 V4, ESP32-S3R2, 16 MB flash**, for the planned 868 MHz setup. Other boards and variants, including V4-R8, are outside the current scope and will not be developed for or tested.
+The sole radio hardware development, support and test target is the **Heltec WiFi LoRa 32 V4, ESP32-S3R2, 16 MB flash**, for the planned 868 MHz setup. Other boards and variants, including V4-R8, are outside the current scope and will not be developed for or tested.
 
 Device replacement means restoring to another unit of this same model and variant. Identity and data continuity remain release requirements to validate; narrowing the hardware scope does not make them proven capabilities.
+
+## Host platforms
+
+| Required target | Architecture | Radio connection |
+| --- | --- | --- |
+| Home Assistant OS in a Proxmox VM | amd64 | USB passthrough to the HAOS VM |
+| Home Assistant OS directly on Raspberry Pi | aarch64 | USB connected to the Raspberry Pi |
+
+Both targets must provide the complete feature set and the same interface: initial flashing of new or previously configured boards, both-profile setup, chat, manual/automatic switching, diagnostics, reporting, backup and same-model device replacement.
+
+Package any flashing service and its dependencies for both architectures. Document platform-specific USB setup, handle device reconnection after boot-mode changes, and validate the complete workflow on each target. Tested Raspberry Pi models and HAOS versions must be listed with release evidence; host support is a requirement, not a claim of completed testing.
 
 ## Decisions
 
@@ -43,10 +54,10 @@ Primary references: MeshCore documents [public, hashtag and private channels](ht
 
 - Accept only the Heltec V4 model and variant defined above. Confirm board variant, flash size, radio band and USB access; ask for identification when detection is inconclusive. Do not offer automatic flashing for unsupported hardware.
 - Download a tested, versioned dual-boot bundle with matching boot components, partition layout and both compatible firmware builds. Verify downloaded artifacts and show installation progress.
-- Offer to preserve existing device data before initial installation. Explain any required erase before the installation starts.
+- Support factory-new and previously configured boards of the target model. Offer to preserve readable existing device data before installation and explain any required erase before it starts. Importing arbitrary third-party firmware settings is not guaranteed.
 - Verify both profiles, USB control and switching after provisioning. Allow guided recovery or a documented boot-button step when unattended entry into flashing mode fails.
 - Downloading arbitrary latest upstream images is insufficient: compatibility with our dual-boot layout and remote switching must be established.
-- Packaging for HAOS, flashing permissions, USB passthrough and headless first-time setup remain engineering questions. HACS is the planned distribution entry point; additional components may be needed.
+- Packaging for both HAOS host targets, flashing permissions, USB access and headless first-time setup remain engineering questions. HACS is the planned distribution entry point; additional components may be needed.
 
 ## Backup and recovery
 
@@ -60,4 +71,4 @@ Cross-model migration is outside scope. Export of every firmware field and full 
 
 ## Release evidence
 
-Demonstrate both-network onboarding, repeated switches with intact identities and histories, restart-safe outbox/snooze behaviour, interrupted-installation recovery and complete restoration to a second Heltec V4 of the same model and variant. Confirm installation on another household's HA system.
+Demonstrate both-network onboarding, repeated switches with intact identities and histories, restart-safe outbox/snooze behaviour, interrupted-installation recovery and complete restoration to a second Heltec V4 of the same model and variant. Run the complete acceptance flow on both Proxmox/HAOS (amd64) and Raspberry Pi/HAOS (aarch64), including new-board installation, reinstallation over existing firmware and recovery. Confirm installation on another household's HA system.
