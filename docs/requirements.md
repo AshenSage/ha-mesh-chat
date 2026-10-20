@@ -50,6 +50,30 @@ Browsing a chat and switching the radio are separate actions. Users may prepare 
 
 Primary references: MeshCore documents [public, hashtag and private channels](https://docs.meshcore.io/companion_protocol/) and separate [region/scope controls](https://docs.meshcore.io/cli_commands/). Meshtastic documents [primary/secondary channels, names and shared keys](https://meshtastic.org/docs/configuration/radio/channels/). These concepts must not be mapped as identical.
 
+## Device recognition and existing profiles
+
+- Identify the physical radio using the ESP32-S3 factory eFuse MAC where accessible. Keep it separate from firmware-reported Wi-Fi/BLE addresses, mesh identity keys, display names and changing USB paths.
+- Maintain a local device registry with first/last seen, model, installed layout/build, each network's identity and setup state, and linked backup records. Recognition means known to this HA installation or its imported registry, not proof of a device's entire usage history.
+- Check backup existence, readability, integrity, age, identity and version compatibility separately. A known device does not imply that a usable or current backup exists.
+- Inspect before writing. If identification needs a bootloader restart, explain that interruption; detection alone must not erase or flash the radio.
+
+| Detected state | Required behaviour |
+| --- | --- |
+| Known device with validated project dual-boot layout and matching profiles | Reconnect and reuse the profiles; do not reinstall or restore solely because the device was reconnected. |
+| Existing configured MeshCore or Meshtastic only | Read and back up the existing identity/settings through a supported interface. Offer migration to the project dual-boot layout, restore and verify the existing profile, then guide setup only for the missing profile. |
+| No usable profile found | Offer initial installation and setup; absence of a readable profile does not prove the board is factory-new. |
+| Known board with reset or changed identity/layout | Show the discrepancy and appropriate recovery choices; never overwrite current device data with an older backup merely because the hardware ID matches. |
+
+Display device recognition, active firmware, each profile's setup state, dual-boot readiness and last usable backup as separate facts.
+
+A working standalone MeshCore installation can be used through a compatible companion connection without repeating radio setup. MeshCore BLE and USB companion builds have different interfaces; USB power alone does not establish a usable chat or export connection.
+
+Preserving an existing profile during the one-time dual-boot conversion is a required migration goal for supported builds, pending validation of key export/import and settings compatibility. If preservation cannot be verified, stop the preserving migration and explain what is missing before offering a separate fresh installation. Existing phone-app chat history is not automatically imported.
+
+Normal network switches reuse isolated profile storage; backup restoration belongs to conversion, repair or replacement. A replacement radio has a new hardware ID even when its restored mesh identity stays the same; update the device/backup association and retain its history.
+
+Technical references: Espressif documents the [factory eFuse MAC](https://docs.espressif.com/projects/esptool/en/latest/esp32s3/espefuse/get-custom-mac-cmd.html) and [MAC/flash read commands](https://docs.espressif.com/projects/esptool/en/latest/esp32s3/esptool/basic-commands.html). MeshCore documents [companion interface types](https://github.com/meshcore-dev/MeshCore/blob/main/docs/faq.md); private-key export/import is [build-dependent](https://github.com/meshcore-dev/MeshCore/blob/main/examples/companion_radio/MyMesh.cpp).
+
 ## Firmware provisioning
 
 - Accept only the Heltec V4 model and variant defined above. Confirm board variant, flash size, radio band and USB access; ask for identification when detection is inconclusive. Do not offer automatic flashing for unsupported hardware.
@@ -71,4 +95,4 @@ Cross-model migration is outside scope. Export of every firmware field and full 
 
 ## Release evidence
 
-Demonstrate both-network onboarding, repeated switches with intact identities and histories, restart-safe outbox/snooze behaviour, interrupted-installation recovery and complete restoration to a second Heltec V4 of the same model and variant. Run the complete acceptance flow on both Proxmox/HAOS (amd64) and Raspberry Pi/HAOS (aarch64), including new-board installation, reinstallation over existing firmware and recovery. Confirm installation on another household's HA system.
+Demonstrate both-network onboarding, repeated switches with intact identities and histories, restart-safe outbox/snooze behaviour, interrupted-installation recovery and complete restoration to a second Heltec V4 of the same model and variant. Run the complete acceptance flow on both Proxmox/HAOS (amd64) and Raspberry Pi/HAOS (aarch64), including new-board installation, reinstallation over existing firmware and recovery. Also verify reconnect recognition, changed-identity detection, missing/stale backup handling and preservation of an existing single-firmware profile during dual-boot conversion. Confirm installation on another household's HA system.
