@@ -2,7 +2,7 @@
 
 **Stage: Requirements gathering · Accepted scope, implementation pending**
 
-Accepted describes the desired product, not verified technical support. Firmware and hardware compatibility must be validated before release.
+Accepted describes the desired product, not verified technical support. Firmware and hardware compatibility must be validated before release. See [planning and open decisions](planning.md) for pending choices and technical prerequisites.
 
 ## Main workflows
 
