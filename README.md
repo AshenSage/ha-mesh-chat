@@ -2,63 +2,58 @@
 
 # Mesh Chat
 
-**MeshCore & Meshtastic, together in Home Assistant.**
+**One radio. Two networks. One Home Assistant interface.**
 
 ![Status: Planning](https://img.shields.io/badge/status-planning-64748b?style=flat-square)
 ![Hardware: Heltec V4](https://img.shields.io/badge/hardware-Heltec_V4-0891b2?style=flat-square)
 ![Platform: Home Assistant](https://img.shields.io/badge/platform-Home_Assistant-18bcf2?style=flat-square)
 
-A shared chat interface with a firmware selector for one USB-connected LoRa radio.
-
 </div>
 
-> **Documentation only.** No installable release yet. Remote firmware switching and hardware compatibility still require implementation and testing.
+> **Documentation only.** No installable release yet. Headless USB switching and data persistence require implementation and hardware testing.
 
-## The idea
+## How it should work
 
-Choose **MeshCore** or **Meshtastic** at the top of the chat. The radio restarts into the selected firmware, reconnects, and opens the corresponding conversations.
+1. Select **MeshCore** or **Meshtastic** in Home Assistant.
+2. The radio restarts into the selected firmware. On first use, complete that firmware's usual supported setup flow once.
+3. Each firmware keeps its own profile. Later switches restore the existing identity, settings and conversations without repeating setup or reflashing.
+4. Home Assistant confirms the active firmware and reconnects the matching chat backend.
 
-Both firmware images would remain on the device. Only the active network can send and receive; traffic on the inactive network is missed.
+Only the active network can send and receive. Messages transmitted while a network is inactive are not guaranteed to arrive later.
 
-## Planned features
+## Data that must survive
 
-| Feature | Goal |
+| Stored by | Required data |
 | --- | --- |
-| Chat | Channels, direct messages, timestamps and delivery status where available |
-| Network selector | Switch firmware from Home Assistant without reflashing each time |
-| Connection status | Show the confirmed active network, switching progress and errors |
-| History | Keep each network's conversations separate |
-| Mobile layout | Comfortable use in the Home Assistant app |
+| Radio, separately for each firmware | Identity keys and node ID/hash, display name, radio settings, channels and keys, plus contacts or peer data supported by that firmware |
+| Home Assistant, separately for each network and radio identity | Recorded channel messages and private DMs, sent and received, with timestamps and available delivery status |
 
-## Intended hardware
+A display name is not the cryptographic identity. Switching must preserve both, never regenerate keys, and never format the other firmware's data.
 
-- **Heltec WiFi LoRa 32 V4, ESP32-S3R2, 16 MB flash.** V4-R8 is a different variant and is outside the initial target.
-- **868 MHz antenna and compatible radio settings** for the initial European setup.
-- **USB-C data cable** and USB access from Home Assistant.
-- Display-free operation is a design goal; the headless dualboot setup needs validation.
+**Chat history must persist in Home Assistant**, beyond browser sessions, radio restarts and HA restarts. Preserving radio settings alone is insufficient. Importing history from existing phone apps is a separate, unconfirmed capability.
 
-The first test environment will be **Home Assistant OS on Proxmox**, using USB passthrough.
+## One chat experience
 
-## Reuse on another home system
+Use the same layout for both networks: channels, private DMs, message history, composer and firmware selector. Keep conversations separate when switching, but restore them when returning.
 
-The goal is installation through **HACS**, followed by setup in the Home Assistant UI. Each household would select its own radio and network settings, with no fixed entity IDs, USB paths or server addresses in the code.
+Expose network-specific features only where supported. If a shared interface cannot cover a feature, use a separate view for it. Include a mobile layout, switching progress and clear connection errors.
 
-Reproducible firmware builds, backup/recovery instructions and a tested hardware list are required before sharing an installable release.
+## Target and installation
 
-## Roadmap
+- **Heltec WiFi LoRa 32 V4:** ESP32-S3R2, 16 MB flash, 868 MHz antenna and USB-C data cable. V4-R8 is outside the initial target.
+- **Headless operation:** intended to work without a display; still to be validated.
+- **First environment:** Home Assistant OS on Proxmox with USB passthrough.
 
-1. Verify the board, USB communication and each firmware independently.
-2. Validate headless dualboot, preserved settings and switching in both directions.
-3. Add the Home Assistant selector and integrate the existing chat backends.
-4. Test reconnection, failed switches and installation on a second home system.
+Planned distribution: **HACS**, with configuration in the HA UI. Each household uses its own radio and profiles; no fixed entity IDs, USB paths or server addresses.
+
+## Before a release
+
+Verify each firmware independently, then switching in both directions. Confirm identity, settings and complete recorded chat history survive repeated switches, HA restarts and power cycles. Test recovery from failed switches and installation on a second home system. Provide reproducible builds and backup/recovery instructions.
 
 ## Foundations
 
-Build on existing projects rather than replace their radio stacks:
-
-- [MeshCore for Home Assistant](https://github.com/meshcore-dev/meshcore-ha) · [MeshCore chat cards](https://github.com/RikoDEV/ha-meshcore-cards)
-- [Meshtastic for Home Assistant](https://github.com/meshtastic/home-assistant)
-- [Heltec V4 dualboot reference](https://github.com/tkh1000/Meshtastic-Meshcore-Dualboot-Heltec-V4-) — its supplied MeshCore image uses Bluetooth; USB switching is not established by this reference.
-- [Heltec hardware specifications](https://heltec.org/project/wifi-lora-32-v4/)
+- [MeshCore HA](https://github.com/meshcore-dev/meshcore-ha) · [MeshCore chat cards](https://github.com/RikoDEV/ha-meshcore-cards) · [Meshtastic HA](https://github.com/meshtastic/home-assistant)
+- [Heltec V4 dualboot reference](https://github.com/tkh1000/Meshtastic-Meshcore-Dualboot-Heltec-V4-) — supplied MeshCore image uses Bluetooth; remote USB switching is not established by this reference.
+- [Hardware specifications](https://heltec.org/project/wifi-lora-32-v4/)
 
 *Independent community project; not affiliated with Home Assistant, MeshCore, Meshtastic or Heltec.*
