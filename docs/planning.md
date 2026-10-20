@@ -2,7 +2,12 @@
 
 **Stage: Requirements gathering · No implementation started**
 
-The [feature requirements](requirements.md) and [automatic switching requirements](automatic-switching.md) contain the agreed scope. The options below are proposals awaiting a decision; they do not add accepted features or remove existing ones.
+The [feature requirements](requirements.md) and [automatic switching requirements](automatic-switching.md) contain the agreed scope. Items under Open product decisions remain proposals; they do not add accepted features or remove existing ones.
+
+## Recorded decisions
+
+- **Backup:** capture profiles after setup/changes and before updates; daily complete project backups, retaining the latest 10 successful states per radio. Include HA backup support and protected downloads; show inactive-profile snapshot age without switching just for backup.
+- **HA outage:** pause scheduled switching and retain the last firmware while powered. On return, retrieve and durably save available received messages before applying the current schedule. Defer automatic switching on synchronization/storage failure. See [recovery requirements](requirements.md#ha-outage-and-message-recovery).
 
 ## Prove the foundation
 
@@ -21,8 +26,6 @@ Before building the full interface, validate these engineering prerequisites on 
 
 | Topic | Decision to make / proposed direction |
 | --- | --- |
-| Backup policy | When to capture backups, where to keep them and how many to retain. Consider profile-change snapshots plus periodic backups, a visible last-successful-backup status and downloadable protected exports. |
-| HA outage | Should automatic switching pause with the last firmware active, or continue through a separate scheduler while HA Core is unavailable? Decide the behaviour for Core downtime versus complete host power loss. |
 | Internet outage | Earlier proposal 13: keep local chat/history and switching usable after setup without internet. Identify which optional features would still need connectivity. |
 | Firmware updates | Earlier proposal 14: notify about tested bundles, let the user start the update, back up first and offer a validated recovery path. Automatic updates remain undecided. |
 | Outbox expiry | Earlier proposal 15: choose how long an unsent message stays eligible for automatic sending. Consider confirmation after expiry rather than silently sending stale messages. |
@@ -31,7 +34,7 @@ Before building the full interface, validate these engineering prerequisites on 
 | Interface | Decide full chat panel, dashboard cards or both. Proposed: one main chat view plus a compact status card, HA theme support, mobile/desktop layouts and interface language choices. Review a wireframe for active/inactive chats, outbox, switching, errors and recovery. |
 | HA automation actions | Earlier item 11 remains undecided: expose user-configurable send/switch actions, and define limits if accepted. |
 
-Still to choose within agreed features: warning lead time, snooze duration, switch/acknowledgement timeout, bounded retry behaviour and default comparison blocks. Earlier examples such as four-hour blocks or a 24-hour outbox expiry are not fixed defaults.
+Still to choose within agreed features: warning lead time, snooze duration, switch/acknowledgement and inbound-sync timeouts, bounded retry behaviour, fallback when message retrieval is unsupported, and default comparison blocks. Earlier examples such as four-hour blocks or a 24-hour outbox expiry are not fixed defaults.
 
 ## Release readiness
 
