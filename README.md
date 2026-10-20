@@ -48,7 +48,8 @@ Comparison mode must balance observation times, retain both profiles and histori
 
 ## Target and installation
 
-- **Heltec WiFi LoRa 32 V4:** ESP32-S3R2, 16 MB flash, 868 MHz antenna and USB-C data cable. V4-R8 is outside the initial target.
+- **Only hardware target:** Heltec WiFi LoRa 32 V4, ESP32-S3R2, 16 MB flash, with an 868 MHz antenna and USB-C data cable. Other boards and variants, including V4-R8, are outside the current development and test scope.
+- **Device replacement:** restore to another unit of this same model and variant; cross-model migration is outside scope.
 - **Headless operation:** intended to work without a display; still to be validated.
 - **First environment:** Home Assistant OS on Proxmox with USB passthrough.
 
@@ -56,7 +57,7 @@ Planned distribution: **HACS**, with configuration in the HA UI. Each household 
 
 ## Before a release
 
-Verify each firmware independently, then switching in both directions. Confirm identity, settings and complete recorded chat history survive repeated switches, HA restarts and power cycles. Test recovery from failed switches and installation on a second home system. Provide reproducible builds and backup/recovery instructions.
+Verify each firmware independently, then switching in both directions. Confirm identity, settings and complete recorded chat history survive repeated switches, HA restarts and power cycles. Test recovery from failed switches, complete restoration to a second Heltec V4 of the same variant, and installation on a second home system. Provide reproducible builds and backup/recovery instructions.
 
 ## Foundations
 
