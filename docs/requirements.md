@@ -4,6 +4,12 @@
 
 Accepted describes the desired product, not verified technical support. Firmware and hardware compatibility must be validated before release.
 
+## Hardware scope
+
+The sole development, support and test target is the **Heltec WiFi LoRa 32 V4, ESP32-S3R2, 16 MB flash**, for the planned 868 MHz setup. Other boards and variants, including V4-R8, are outside the current scope and will not be developed for or tested.
+
+Device replacement means restoring to another unit of this same model and variant. Identity and data continuity remain release requirements to validate; narrowing the hardware scope does not make them proven capabilities.
+
 ## Decisions
 
 | # | Feature | Requirement |
@@ -17,7 +23,7 @@ Accepted describes the desired product, not verified technical support. Firmware
 | 7 | Diagnostics and trends | Show connection health, last received traffic, failures and historical trends. Include RSSI/SNR, response times, delivery outcomes and radio statistics where exposed, with timestamps and measurement context. |
 | 8 | Favourites and channel setup | Pin contacts/channels and select defaults per network. Support each protocol's native channel and routing-scope concepts; do not assume equivalent features. |
 | 9 | Public guided installation | Anyone can download and install the project. Connecting a supported radio should lead into guided firmware download, flashing, verification and setup of both profiles. |
-| 10 | Complete backup and replacement | Back up both identities and profiles plus application data. Restore onto a supported replacement device and verify identity continuity. See recovery requirements below. |
+| 10 | Complete backup and replacement | Back up both identities and profiles plus application data. Restore onto another Heltec V4 of the same model and variant and verify identity continuity. See recovery requirements below. |
 | 11 | HA automation actions | **Undecided.** User-defined actions such as sending messages or requesting switches are not accepted scope yet. |
 | 12 | Comparison report | Provide a readable report over a configurable period, such as one month: actual observation time, selected-peer delivery/reply outcomes, response times and outages. Follow the fairness rules in [automatic switching](automatic-switching.md). |
 
@@ -35,7 +41,7 @@ Primary references: MeshCore documents [public, hashtag and private channels](ht
 
 ## Firmware provisioning
 
-- Start with the supported Heltec V4 target. Confirm board variant, flash size, radio band and USB access; ask for identification when detection is inconclusive.
+- Accept only the Heltec V4 model and variant defined above. Confirm board variant, flash size, radio band and USB access; ask for identification when detection is inconclusive. Do not offer automatic flashing for unsupported hardware.
 - Download a tested, versioned dual-boot bundle with matching boot components, partition layout and both compatible firmware builds. Verify downloaded artifacts and show installation progress.
 - Offer to preserve existing device data before initial installation. Explain any required erase before the installation starts.
 - Verify both profiles, USB control and switching after provisioning. Allow guided recovery or a documented boot-button step when unattended entry into flashing mode fails.
@@ -48,10 +54,10 @@ A complete project backup includes both profiles' identity keys and identifiers,
 
 Ordinary firmware selection should retain isolated profile storage and commit HA state without reinstalling or restoring a full backup. Fault recovery and device replacement use a separate restore workflow.
 
-For replacement, validate the target hardware and firmware, restore supported data, then read back and compare identity keys/identifiers. Reconcile queued and uncertain sends before resuming. Retire the old radio before activating its identity on the replacement.
+For replacement, require another Heltec V4 of the same model and variant, validate its firmware, restore supported data, then read back and compare identity keys/identifiers. Reconcile queued and uncertain sends before resuming. Retire the old radio before activating its identity on the replacement.
 
-Exact transfer to arbitrary boards, export of every firmware field and full identity preservation across versions are not yet verified. A raw flash image is not a universal migration format. Meshtastic provides documented [configuration and identity-key backup/restore](https://meshtastic.org/docs/configuration/radio/security/); MeshCore export/import support and completeness must be verified for our chosen builds.
+Cross-model migration is outside scope. Export of every firmware field and full identity preservation across supported versions still require validation. Meshtastic provides documented [configuration and identity-key backup/restore](https://meshtastic.org/docs/configuration/radio/security/); MeshCore export/import support and completeness must be verified for our chosen builds.
 
 ## Release evidence
 
-Demonstrate both-network onboarding, repeated switches with intact identities and histories, restart-safe outbox/snooze behaviour, interrupted-installation recovery and restoration to a second supported radio. Confirm installation on another household's HA system.
+Demonstrate both-network onboarding, repeated switches with intact identities and histories, restart-safe outbox/snooze behaviour, interrupted-installation recovery and complete restoration to a second Heltec V4 of the same model and variant. Confirm installation on another household's HA system.
