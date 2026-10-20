@@ -14,9 +14,9 @@
 
 ## How it should work
 
-1. Select **MeshCore** or **Meshtastic** in Home Assistant.
-2. The radio restarts into the selected firmware. On first use, complete that firmware's usual supported setup flow once.
-3. Each firmware keeps its own profile. Later switches restore the existing identity, settings and conversations without repeating setup or reflashing.
+1. Connect a supported radio. A guided installer downloads and flashes a tested dual-firmware bundle, then helps configure both profiles once.
+2. Select **MeshCore** or **Meshtastic** in Home Assistant. The radio restarts into the selected firmware.
+3. Each firmware keeps its own profile. Later switches retain the existing identity, settings and conversations without repeating setup or reflashing.
 4. Home Assistant confirms the active firmware and reconnects the matching chat backend.
 
 Only the active network can send and receive. Messages transmitted while a network is inactive are not guaranteed to arrive later.
@@ -36,7 +36,9 @@ A display name is not the cryptographic identity. Switching must preserve both, 
 
 Use the same layout for both networks: channels, private DMs, message history, composer and firmware selector. Keep conversations separate when switching, but restore them when returning.
 
-Expose network-specific features only where supported. If a shared interface cannot cover a feature, use a separate view for it. Include a mobile layout, switching progress and clear connection errors.
+Browse either network's saved chats without switching the radio; mark the confirmed active network. For an inactive network, offer an outbox or an explicit switch-and-send action.
+
+Expose network-specific features only where supported. Include a mobile layout, switching progress and clear connection errors. See the [accepted feature requirements](docs/requirements.md) for contacts, notifications, trends, onboarding and complete backup/recovery.
 
 ## Automatic switching and comparison
 
