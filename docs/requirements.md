@@ -4,6 +4,16 @@
 
 Accepted describes the desired product, not verified technical support. Firmware and hardware compatibility must be validated before release.
 
+## Main workflows
+
+1. **First installation:** connect a new target board, install the project firmware bundle and configure both profiles once. No previous backup is required.
+2. **Everyday operation:** reconnect and switch networks using the existing profiles and HA history, without repeating setup or restoring a backup.
+3. **Replacement after failure:** connect a new board of the same supported model and variant, select an existing project backup, install the compatible bundle and restore both profiles and application data. The old radio may be broken or unavailable; restoration must not depend on connecting it.
+
+Replacement recovers the state captured by the last usable backup. Changes made after that backup cannot be assumed recoverable. The replacement's new hardware ID must not prevent selecting and validating the old radio's backup.
+
+Conversion of an already configured standalone/third-party installation is a rare, lower-priority workflow. Its preservation requirements remain documented, but it should not drive the design of the primary installation and replacement flows.
+
 ## Hardware scope
 
 The sole radio hardware development, support and test target is the **Heltec WiFi LoRa 32 V4, ESP32-S3R2, 16 MB flash**, for the planned 868 MHz setup. Other boards and variants, including V4-R8, are outside the current scope and will not be developed for or tested.
@@ -95,4 +105,4 @@ Cross-model migration is outside scope. Export of every firmware field and full 
 
 ## Release evidence
 
-Demonstrate both-network onboarding, repeated switches with intact identities and histories, restart-safe outbox/snooze behaviour, interrupted-installation recovery and complete restoration to a second Heltec V4 of the same model and variant. Run the complete acceptance flow on both Proxmox/HAOS (amd64) and Raspberry Pi/HAOS (aarch64), including new-board installation, reinstallation over existing firmware and recovery. Also verify reconnect recognition, changed-identity detection, missing/stale backup handling and preservation of an existing single-firmware profile during dual-boot conversion. Confirm installation on another household's HA system.
+Demonstrate both-network onboarding, repeated switches with intact identities and histories, restart-safe outbox/snooze behaviour, interrupted-installation recovery and complete restoration to a second Heltec V4 of the same model and variant. Run the complete acceptance flow on both Proxmox/HAOS (amd64) and Raspberry Pi/HAOS (aarch64), including new-board installation, reinstallation over existing firmware and recovery. Also verify replacement with the old radio disconnected/unavailable, reconnect recognition, changed-identity detection, missing/stale backup handling and preservation of an existing single-firmware profile during dual-boot conversion. Confirm installation on another household's HA system.
