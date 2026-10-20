@@ -57,6 +57,8 @@ Planned distribution: **HACS**, with configuration in the HA UI. Each household 
 
 ## Before a release
 
+[Planning and open decisions](docs/planning.md) tracks pending product choices and prerequisite hardware checks.
+
 Verify each firmware independently, then switching in both directions. Confirm identity, settings and complete recorded chat history survive repeated switches, HA restarts and power cycles. Test recovery from failed switches, complete restoration to a second Heltec V4 of the same variant, and installation on a second home system. Run the full acceptance flow on both Proxmox/HAOS and Raspberry Pi/HAOS. Provide reproducible builds and backup/recovery instructions.
 
 ## Foundations
