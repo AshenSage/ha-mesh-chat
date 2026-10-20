@@ -4,13 +4,13 @@
 
 **One radio. Two networks. One Home Assistant interface.**
 
-![Status: Planning](https://img.shields.io/badge/status-planning-64748b?style=flat-square)
+![Status: Requirements gathering](https://img.shields.io/badge/status-requirements_gathering-64748b?style=flat-square)
 ![Hardware: Heltec V4](https://img.shields.io/badge/hardware-Heltec_V4-0891b2?style=flat-square)
 ![Platform: Home Assistant](https://img.shields.io/badge/platform-Home_Assistant-18bcf2?style=flat-square)
 
 </div>
 
-> **Documentation only.** No installable release yet. Headless USB switching and data persistence require implementation and hardware testing.
+> **Requirements gathering.** We are defining features, behaviour and interface requirements. This repository contains documentation only; implementation and hardware validation have not started.
 
 ## How it should work
 
@@ -37,6 +37,12 @@ A display name is not the cryptographic identity. Switching must preserve both, 
 Use the same layout for both networks: channels, private DMs, message history, composer and firmware selector. Keep conversations separate when switching, but restore them when returning.
 
 Expose network-specific features only where supported. If a shared interface cannot cover a feature, use a separate view for it. Include a mobile layout, switching progress and clear connection errors.
+
+## Automatic switching and comparison
+
+A planned feature alongside manual switching: configurable schedules, timers and an optional comparison mode. The UI should show the active network, next switch and a manual override.
+
+Comparison mode must balance observation times, retain both profiles and histories, and distinguish network activity from confirmed communication success. See [automatic switching requirements](docs/automatic-switching.md).
 
 ## Target and installation
 
