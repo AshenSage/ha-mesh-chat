@@ -62,7 +62,7 @@ class Lab:
             command.extend(["--network", network])
         self.process = await asyncio.create_subprocess_exec(*command, stdout=asyncio.subprocess.PIPE,
                                                             stderr=asyncio.subprocess.DEVNULL)
-        timeout = 600 if action == "enrol" else 120
+        timeout = 600 if action in ("enrol", "resnapshot") else 120
         try:
             output, _ = await asyncio.wait_for(self.process.communicate(), timeout)
             result = json.loads(output)
@@ -83,7 +83,7 @@ class Lab:
     def start(self, action, config, network=None, cycles=1):
         if self.task and not self.task.done():
             raise LabError("A USB job is already running")
-        if action not in ("inspect", "enrol", "baseline", "switch", "cycle"):
+        if action not in ("inspect", "enrol", "baseline", "switch", "resnapshot", "cycle"):
             raise LabError("Unknown operation")
         if not config.get("device"):
             raise LabError("Select a USB device in the app configuration")
@@ -110,6 +110,9 @@ class Lab:
     async def execute(self, run, config):
         try:
             if run["action"] == "cycle":
+                result = await self.worker("resnapshot", config)
+                run["steps"].append({"time": now(), "phase": "resnapshot", "result": result})
+                self.persist()
                 first = run["target"]
                 other = next(n for n in NETWORKS if n != first)
                 # Establish the requested start (not counted as a transition),

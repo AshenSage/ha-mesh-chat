@@ -164,7 +164,9 @@ def test_cycle_counts_real_transitions_and_stops_on_first_failure(tmp_path):
     async def scenario(fail=False):
         lab = Lab(tmp_path)
         calls = []
-        async def fake(action, config, network):
+        async def fake(action, config, network=None):
+            if action == "resnapshot":
+                return {"status": "snapshot_saved"}
             calls.append(network)
             if fail and len(calls) == 3:
                 raise LabError("target failed to reply")

@@ -212,10 +212,38 @@ def load_registry(data):
     return json.loads(path.read_text())
 
 
+def snapshot(radio, data, registry):
+    """Read flash into a new recovery point; retain the old one on failure."""
+    image = radio.esp.read_flash(0, FLASH_SIZE)
+    if len(image) != FLASH_SIZE:
+        raise LabError("Full flash backup is incomplete")
+    validate_table(image[TABLE_OFFSET:TABLE_OFFSET + SECTOR])
+    path = data / ("flash-" + uuid.uuid4().hex + ".bin")
+    with path.open("xb") as stream:
+        os.chmod(path, 0o600)
+        stream.write(image)
+        stream.flush()
+        os.fsync(stream.fileno())
+    if digest(path.read_bytes()) != digest(image):
+        raise LabError("Backup readback failed")
+    updated = {**registry, "backup": path.name, "backup_sha256": digest(image),
+               "snapshot_at": time.time(), "snapshot_profiles": sorted(registry.get("profiles", {}))}
+    save_json(data / "registry.json", updated)
+    return updated
+
+
 def run(action, configured, data, network=None):
     data.mkdir(parents=True, exist_ok=True, mode=0o700)
-    registry = load_registry(data) if action in ("baseline", "switch") else None
+    registry = load_registry(data) if action in ("baseline", "switch", "resnapshot") else None
     usb = resolve_port(configured, registry)
+    if action == "resnapshot":
+        if set(registry.get("profiles", {})) != set(NETWORKS):
+            raise LabError("Both profile baselines are required before resnapshot")
+        with Radio(usb["device"]) as radio:
+            require_same_device(radio.inspect(), registry)
+            updated = snapshot(radio, data, registry)
+        return {"status": "snapshot_saved", "snapshot_at": updated["snapshot_at"],
+                "snapshot_profiles": updated["snapshot_profiles"]}
     if action in ("inspect", "enrol"):
         with Radio(usb["device"]) as radio:
             info = radio.inspect(strict=action == "enrol")
@@ -225,21 +253,9 @@ def run(action, configured, data, network=None):
                 raise LabError("Already enrolled. Archive the lab data before enrolling a different setup")
             if info["selected_slot"] is None:
                 raise LabError("Select and boot one firmware manually before enrolment")
-            image = radio.esp.read_flash(0, FLASH_SIZE)
-            if len(image) != FLASH_SIZE:
-                raise LabError("Full flash backup is incomplete")
-            validate_table(image[TABLE_OFFSET:TABLE_OFFSET + SECTOR])
-            path = data / ("flash-" + uuid.uuid4().hex + ".bin")
-            with path.open("xb") as stream:
-                os.chmod(path, 0o600)
-                stream.write(image)
-                stream.flush()
-                os.fsync(stream.fileno())
-            if digest(path.read_bytes()) != digest(image):
-                raise LabError("Backup readback failed")
-            registry = {**info, "usb": usb, "backup": path.name, "backup_sha256": digest(image),
+            registry = {**info, "usb": usb,
                         "profiles": {}, "enrolled_at": time.time()}
-            save_json(data / "registry.json", registry)
+            snapshot(radio, data, registry)
             return {**info, "backup_saved": True}
     if network not in NETWORKS:
         raise LabError("Choose meshcore or meshtastic")
@@ -291,7 +307,7 @@ def run(action, configured, data, network=None):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=("inspect", "enrol", "baseline", "switch", "ports"))
+    parser.add_argument("action", choices=("inspect", "enrol", "baseline", "switch", "resnapshot", "ports"))
     parser.add_argument("--device", default="")
     parser.add_argument("--data", default="/data")
     parser.add_argument("--network", choices=tuple(NETWORKS))

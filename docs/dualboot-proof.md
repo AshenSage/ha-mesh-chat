@@ -38,7 +38,7 @@ All rows start **NOT RUN**. Do not infer a hardware pass from software tests, st
 | Power cycle | Five radio power cycles per firmware; identity/settings retained and USB reconnects | NOT RUN |
 | USB interruption | Interrupt a bench attempt; report fails/interrupts, no blind retries; device can be inspected/recovered | NOT RUN |
 | Bad layout/device | Unsupported layout, wrong flash size, changed MAC/build and damaged snapshot block writes | NOT RUN |
-| Recovery | Preserve original snapshot; document actual ROM/button recovery procedure and verify restored profiles | NOT RUN |
+| Recovery | Restore the CURRENT post-baseline snapshot to a second matching board with the original unavailable; verify both original identities, channel keys and profiles without regenerating keys; retain the original pre-installation dump too | NOT RUN |
 
 These are proposed engineering acceptance counts for this lab milestone, not claims of a statistically proven failure rate. If a test cannot be performed (e.g. no second host yet), keep it pending and state the narrower evidence.
 

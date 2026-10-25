@@ -58,14 +58,16 @@ For a first bench installation, use the reference checkout at the pinned commit 
 | `0x220000` | Our prepared `meshcore-usb-lab.bin` |
 | `0x680000` | Reference `meshtastic/firmware.bin` |
 
-Record all component SHA-256 hashes. First select and boot one firmware using the reference selector if needed. Finish its initial profile setup. Manually select/setup the other profile once if needed; finish configuration before capturing baselines. Do not apply OTA updates or change profiles during a measured round-trip run. The lab is allowed to fail here: USB runtime/control incompatibility is a result to diagnose, not a reason to weaken verification.
+Record all component SHA-256 hashes. First select and boot one firmware using the reference selector if needed. Finish its initial profile setup. Manually select and finish setup of BOTH profiles before enrolment; never rely on a first lab switch to create the second identity. Do not apply OTA updates or change profiles during a measured round-trip run. The lab is allowed to fail here: USB runtime/control incompatibility is a result to diagnose, not a reason to weaken verification.
 
 ## 3. Enrol and run individual switches
 
-1. Start the lab, run preflight, then **Testgerät registrieren + sichern**. The exact layout is required. The app reads a complete 16 MB prepared-board snapshot, checks the stored hash and binds its registry to the factory MAC, table and app hashes. Raw flash stays in private `/data` and is included in cold app backups. There is no raw-backup download endpoint.
+1. First finish both firmware profiles manually as described above. Start the lab, run preflight, then **Testgerät registrieren + sichern**. The exact layout is required. The app reads a complete 16 MB prepared-board snapshot, checks the stored hash and binds its registry to the factory MAC, table and app hashes. Raw flash stays in private `/data` and is included in cold app backups. There is no raw-backup download endpoint.
 2. Select the currently running firmware and **Ausgangszustand … erfassen**. A real USB response is required. MeshCore uses `SELF_INFO`; Meshtastic uses completed USB configuration, own node and metadata.
 3. Stop the app, enable `allow_boot_selection_write: true`, start it again. Choose the other firmware and **wechseln**. This is an explicit experimental lab action.
-4. The first visit to the other firmware creates its baseline and is labelled `first_boot_baseline`; it cannot prove historical profile preservation yet. Return to the original firmware, then back again. Later visits must match the stored identity and selected settings.
+4. The first lab visit to the already configured other firmware records its baseline and is labelled `first_boot_baseline`; it cannot prove historical profile preservation yet. Return to the original firmware, then back again. Later visits must match the stored identity and selected settings.
+
+After both baselines have been recorded, run the read-only `resnapshot` command to capture both configured profiles. Every round-test start automatically resnapshots before any switch; a snapshot failure stops the run. Earlier recovery points are retained.
 
 A switch checks the existing snapshot and actual chip/layout/app fingerprints, checks the current runtime/profile, writes **one inactive 4 KB OTA selection sector**, reads it back while retaining the other valid copy, resets and checks the target protocol twice. Firmware application images, NVS and both profile filesystem partitions are not rewritten by the controller. The firmwares themselves can still write their own settings; persistence must be tested.
 
