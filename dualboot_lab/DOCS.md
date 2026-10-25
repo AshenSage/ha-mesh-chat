@@ -118,3 +118,8 @@ New private files are created with mode 0600 from the first open; JSON updates u
 A corrupt report is quarantined as `report-corrupt-*.json`; startup begins a new report without resuming old jobs. The live report retains 100 runs; overflow rotates to at most five private report archives. Raw snapshots are not automatically deleted by report rotation.
 
 `python tools/prepare_selection_recovery.py JOURNAL.json FRESH-OTADATA.bin --expect-mac TRUSTED_MAC --output PRIVATE_DIRECTORY` reads private files only. It prepares one inactive-sector recovery candidate and a hash/address plan for the journal's previous selection, or reports a no-op. It NEVER opens USB, resets a board or writes flash. A stale file is not evidence of current board state. Before any separate physical recovery, independently verify fresh device identity, layout/builds, current OTA data, candidate size/address/hash and the retained valid sector. The generated plan is not proof of restoration. Hardware recovery remains NOT RUN.
+
+
+### Open selection journal
+
+`pending` or `written` blocks every new switch and round test in both server and worker, including the final writer. Never overwrite the recovery pre-state with a new attempt. After independently inspecting/recovering the board, explicitly use `acknowledge_journal --reason manual_recovery_checked` (or `abandoned_after_inspection`). This file-only action archives the original journal and reason before marking it acknowledged. It is not recovery or hardware validation. No automatic acknowledgement occurs.

@@ -38,6 +38,7 @@
  <button class="primary" data-action="cycle">Rundentest starten</button>
  <p><small>Erstes Ziel: 3 Runden. Anschliessend 20 Runden auf jedem Host sowie Neustart- und Stromunterbruchtests gemäss Testplan.</small></p>
 </section>
+<section><h2>Offenes Journal quittieren</h2><p>Erst den Gerätezustand unabhängig prüfen. Die Quittierung führt keine Wiederherstellung durch.</p><select id="reason"><option value="manual_recovery_checked">Manuelle Wiederherstellung geprüft</option><option value="abandoned_after_inspection">Nach Prüfung verworfen</option></select><button data-action="acknowledge_journal">Journal mit Grund quittieren</button></section>
 <p id="feedback" role="status" aria-live="polite"></p>
 <section><div class="row"><h2>Testprotokoll</h2><a href="api/report" download>JSON herunterladen</a></div><pre id="report">Noch kein Test.</pre></section>
 <script>
@@ -49,7 +50,7 @@
  else if(s.report.runs.length){const last=s.report.runs.at(-1);feedback.textContent=last.status+(last.error?' · '+last.error:'');feedback.className=last.status==='completed'?'success':'warn'}
  }catch(e){feedback.textContent=e.message;feedback.className='warn'}}
  document.querySelectorAll('[data-action]').forEach(b=>b.onclick=async()=>{if(busy)return;busy=true;document.querySelectorAll('button').forEach(x=>x.disabled=true);
- try{const r=await fetch('api/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:b.dataset.action,network:document.querySelector('#network').value,cycles:Number(document.querySelector('#cycles').value)})});const v=await r.json();if(!r.ok)throw Error(v.error);await refresh()}catch(e){busy=false;document.querySelectorAll('button').forEach(x=>x.disabled=false);feedback.textContent=e.message;feedback.className='warn'}});
+ try{const r=await fetch('api/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:b.dataset.action,reason:document.querySelector("#reason").value,network:document.querySelector('#network').value,cycles:Number(document.querySelector('#cycles').value)})});const v=await r.json();if(!r.ok)throw Error(v.error);await refresh()}catch(e){busy=false;document.querySelectorAll('button').forEach(x=>x.disabled=false);feedback.textContent=e.message;feedback.className='warn'}});
  refresh();setInterval(refresh,2000);
 </script>
 </html>

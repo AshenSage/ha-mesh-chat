@@ -117,3 +117,9 @@ Open gates: A2 generic descriptors require explicitly identifying firmware build
 Rechecked layout.py verify_slot_projects and worker.py inspect/baseline/select at reviewed head. Both manually booted runtimes must be baselined and bound to slot/app MD5. The first switch inspect refuses missing, swapped or changed attestations before any probe; the writer repeats it. Non-generic descriptor conflicts remain blocked, generic Arduino descriptors now work with attestation. Removed first_boot_baseline writes; docs/UI require both manual baselines. Tests include generic images, swapped names/attestations, changed hashes, early refusal and baseline attestation. Executed test commands use ../mesh-lab-venv/bin/python (Python 3.12); no USB, real flash, reset or reboot. A5 and all hardware assumptions remain NOT RUN.
 
 Executed: `python -m pytest -q` — 70 passed in 0.90s; `git diff --check` passed. No device operations.
+
+## R2-5 — block writes on open journals and require explicit acknowledgement
+
+Rechecked current select/mark_selection/run and server start/execute. Pending, written and unknown states block switch/cycle before device access and again inside Radio.select. File-only acknowledge_journal requires an explicit bounded reason code, archives the complete original pre-state before marking acknowledged, and records the reason in the report. Added UI/CLI/API route and tests for all gates and archive preservation. Exact commands: ../mesh-lab-venv/bin/python -m pytest -q; git diff --check. No physical operations; no recovery claim.
+
+Executed: `python -m pytest -q` — 74 passed in 0.96s; `git diff --check` passed. No device operations.

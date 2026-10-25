@@ -154,6 +154,7 @@ class Radio:
         return result
 
     def select(self, network, registry, data):
+        require_closed_journal(data)
         if self.board_confirmed is not True or self.allow_boot_selection_write is not True:
             raise LabError("Explicit board confirmation and boot-selection write permission are required")
         if self.psram_cap != 2:
@@ -300,6 +301,37 @@ def load_registry(data):
     return json.loads(path.read_text())
 
 
+ACK_REASONS = ("manual_recovery_checked", "abandoned_after_inspection")
+
+
+def require_closed_journal(data):
+    path = data / "last-selection.json"
+    if path.exists():
+        try:
+            state = json.loads(path.read_text())
+        except (ValueError, UnicodeError) as exc:
+            raise LabError("Selection journal is unreadable; preserve and inspect it") from exc
+        if state.get("status") not in ("verified", "acknowledged"):
+            raise LabError("Open selection journal; verify the selected runtime or explicitly acknowledge after inspection")
+
+
+def acknowledge_journal(data, reason):
+    if reason not in ACK_REASONS:
+        raise LabError("Choose an explicit journal acknowledgement reason")
+    path = data / "last-selection.json"
+    if not path.exists():
+        raise LabError("No selection journal to acknowledge")
+    state = json.loads(path.read_text())
+    if state.get("status") not in ("pending", "written"):
+        raise LabError("Only pending/written journals can be acknowledged")
+    archive = "selection-ack-" + uuid.uuid4().hex + ".json"
+    saved = {**state, "acknowledgement_reason": reason, "acknowledged_at": time.time()}
+    save_json(data / archive, saved)
+    save_json(path, {**saved, "status": "acknowledged", "archive": archive})
+    return {"status": "journal_acknowledged", "reason": reason, "archive": archive,
+            "hardware_validated": False}
+
+
 def mark_selection(data, status):
     path = data / "last-selection.json"
     state = json.loads(path.read_text())
@@ -333,12 +365,16 @@ def snapshot(radio, data, registry):
     return updated
 
 
-def run(action, configured, data, network=None, *, board_confirmed=False, allow_boot_selection_write=False):
+def run(action, configured, data, network=None, *, board_confirmed=False, allow_boot_selection_write=False, reason=None):
     if action != "inspect" and board_confirmed is not True:
         raise LabError("Explicit board confirmation is required")
     if action == "switch" and allow_boot_selection_write is not True:
         raise LabError("Explicit boot-selection write permission is required")
     data.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if action == "acknowledge_journal":
+        return acknowledge_journal(data, reason)
+    if action == "switch":
+        require_closed_journal(data)
     registry = load_registry(data) if action in ("baseline", "switch", "resnapshot") else None
     usb = resolve_port(configured, registry)
     if action == "resnapshot":
@@ -433,7 +469,8 @@ def run(action, configured, data, network=None, *, board_confirmed=False, allow_
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=("inspect", "enrol", "baseline", "switch", "resnapshot", "ports"))
+    parser.add_argument("action", choices=("inspect", "enrol", "baseline", "switch", "resnapshot", "acknowledge_journal", "ports"))
+    parser.add_argument("--reason", choices=ACK_REASONS)
     parser.add_argument("--device", default="")
     parser.add_argument("--data", default="/data")
     parser.add_argument("--network", choices=tuple(NETWORKS))
@@ -451,7 +488,7 @@ def main():
     try:
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             result = ports() if args.action == "ports" else run(args.action, args.device, Path(args.data), args.network,
-                    board_confirmed=args.board_confirmed, allow_boot_selection_write=args.allow_boot_selection_write)
+                    board_confirmed=args.board_confirmed, allow_boot_selection_write=args.allow_boot_selection_write, reason=args.reason)
         emit({"type": "result", "ok": True, "result": result})
     except Exception as exc:
         diagnostics.log_exception(Path(args.data), exc)

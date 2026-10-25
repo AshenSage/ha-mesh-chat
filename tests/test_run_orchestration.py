@@ -168,3 +168,31 @@ def test_r2_1_baseline_attests_only_manually_selected_runtime(setup_run):
     assert s.run("meshcore", "baseline")["status"] == "baseline_verified"
     assert worker.load_registry(s.data)["slot_attestation"]["meshcore"]["app_md5"] == "mc"
     assert not s.calls
+
+
+@pytest.mark.parametrize("status", ["pending", "written", "unknown"])
+def test_r2_5_open_journal_blocks_worker_and_parent_before_device(setup_run, status):
+    from lab.server import Lab
+    s = setup_run
+    worker.save_json(s.data / "last-selection.json", {"status": status, "otadata_hex": "original"})
+    with pytest.raises(LabError, match="Open selection journal"):
+        s.run()
+    for action in ("switch", "cycle"):
+        with pytest.raises(LabError, match="Open selection journal"):
+            Lab(s.data).start(action, {"device": "fake", "board_confirmed": True,
+                                      "allow_boot_selection_write": True}, "meshtastic")
+    assert not s.entered and not s.calls
+    assert json.loads((s.data / "last-selection.json").read_text())["otadata_hex"] == "original"
+
+
+def test_r2_5_acknowledgement_preserves_original_without_device(tmp_path, monkeypatch):
+    original = {"status": "written", "target": "meshtastic", "otadata_hex": "original"}
+    worker.save_json(tmp_path / "last-selection.json", original)
+    monkeypatch.setattr(worker, "resolve_port", lambda *_: pytest.fail("no device access"))
+    with pytest.raises(LabError, match="reason"):
+        worker.run("acknowledge_journal", "", tmp_path, board_confirmed=True)
+    result = worker.run("acknowledge_journal", "", tmp_path, board_confirmed=True,
+                        reason="manual_recovery_checked")
+    worker.require_closed_journal(tmp_path)
+    assert json.loads((tmp_path / result["archive"]).read_text())["otadata_hex"] == "original"
+    assert json.loads((tmp_path / "last-selection.json").read_text())["status"] == "acknowledged"

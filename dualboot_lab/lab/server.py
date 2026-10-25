@@ -12,7 +12,7 @@ import uuid
 from aiohttp import web
 
 from .layout import LabError, NETWORKS
-from .worker import save_json
+from .worker import save_json, require_closed_journal, ACK_REASONS
 from .diagnostics import PHASES, PHASE_TIMEOUTS
 
 DATA = Path(os.environ.get("LAB_DATA", "/data"))
@@ -112,10 +112,12 @@ class Lab:
                 pass
             await process.wait()
 
-    async def worker(self, action, config, network=None):
+    async def worker(self, action, config, network=None, reason=None):
         started = time.monotonic()
         command = [sys.executable, "-m", "lab.worker", action, "--device", config.get("device", ""),
                    "--data", str(self.data)]
+        if reason:
+            command.extend(["--reason", reason])
         if network:
             command.extend(["--network", network])
         if config.get("board_confirmed") is True:
@@ -158,12 +160,16 @@ class Lab:
                 await self.stop_worker(self.process, action)
             self.process = None
 
-    def start(self, action, config, network=None, cycles=1):
+    def start(self, action, config, network=None, cycles=1, reason=None):
         if self.task and not self.task.done():
             raise LabError("A USB job is already running")
-        if action not in ("inspect", "enrol", "baseline", "switch", "resnapshot", "cycle"):
+        if action not in ("inspect", "enrol", "baseline", "switch", "resnapshot", "cycle", "acknowledge_journal"):
             raise LabError("Unknown operation")
-        if not config.get("device"):
+        if action in ("switch", "cycle"):
+            require_closed_journal(self.data)
+        if action == "acknowledge_journal" and reason not in ACK_REASONS:
+            raise LabError("Choose an explicit journal acknowledgement reason")
+        if not config.get("device") and action != "acknowledge_journal":
             raise LabError("Select a USB device in the app configuration")
         if action != "inspect" and config.get("board_confirmed") is not True:
             raise LabError("Confirm Heltec V4 ESP32-S3R2 / 16 MB / 868 MHz in the app configuration")
@@ -179,7 +185,7 @@ class Lab:
             if set(registry.get("profiles", {})) != set(NETWORKS):
                 raise LabError("Establish both firmware baselines with individual switches first")
         run = {"id": uuid.uuid4().hex, "action": action, "started": now(),
-               "status": "running", "steps": [], "target": network, "cycles": cycles}
+               "status": "running", "steps": [], "target": network, "cycles": cycles, "reason": reason}
         self.state["runs"].append(run)
         self.persist()
         self.task = asyncio.create_task(self.execute(run, config))
@@ -206,6 +212,9 @@ class Lab:
                             raise LabError("Cycle did not produce a verified actual transition")
                         run["steps"].append({"time": now(), "cycle": cycle, "result": result})
                         self.persist()
+            elif run["action"] == "acknowledge_journal":
+                result = await self.worker(run["action"], config, reason=run["reason"])
+                run["steps"].append({"time": now(), "result": result})
             else:
                 result = await self.worker(run["action"], config, run["target"])
                 run["steps"].append({"time": now(), "result": result})
@@ -243,7 +252,7 @@ async def start(request):
         if not isinstance(body, dict):
             raise LabError("Expected a JSON object")
         lab = request.app[LAB_KEY]
-        identifier = lab.start(body.get("action"), options(lab.data), body.get("network"), body.get("cycles", 1))
+        identifier = lab.start(body.get("action"), options(lab.data), body.get("network"), body.get("cycles", 1), body.get("reason"))
         return web.json_response({"job": identifier}, status=202)
     except (LabError, ValueError) as exc:
         return web.json_response({"error": str(exc)}, status=400)
