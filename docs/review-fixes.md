@@ -177,3 +177,9 @@ Executed: `python -m pytest -q` — 97 passed in 1.32s; `git diff --check` passe
 Rechecked Dockerfile FROM. Queried authenticated public Docker registry manifest for python:3.12-slim-bookworm, verified response bytes SHA-256 equals Docker-Content-Digest, and checked linux amd64 and arm64 entries. Pinned immutable index sha256:6a0e06f5ba0b373d051aabd3fffb9b873f27f9a2a3a14bcbe37dee6f0e3bbc70. Static regression test rejects a tag-only FROM. Executed registry-only urllib request, ../mesh-lab-venv/bin/python -m pytest -q and git diff --check. No docker/container build yet and no device operations.
 
 Executed: `python -m pytest -q` — 98 passed in 2.41s; `git diff --check` passed. No device operations.
+
+## R2-P3-3 — derive recorded PlatformIO platform version from the versioned patch
+
+Rechecked build metadata and the single platform addition in meshcore-usb-lab.patch. Removed duplicated hardcoded metadata value; parse exactly one versioned Espressif platform from the patch before starting a build. Test changes a synthetic patch version and rejects a floating platform. Exact commands: ../mesh-lab-venv/bin/python -m pytest -q; git diff --check. No compilation or device operations.
+
+Executed: `python -m pytest -q` — 99 passed in 2.12s; `git diff --check` passed. No device operations.

@@ -74,3 +74,13 @@ def test_r2_4_shared_storage_calls_require_explicit_audit_entry(checkout, call):
     subprocess.run(["git", "add", "unsafe.cpp"], cwd=source, check=True)
     with pytest.raises(SystemExit, match="Unreviewed filesystem call"):
         builder.audit_filesystems(source)
+
+
+
+def test_r2_p3_platform_metadata_comes_from_versioned_patch(tmp_path):
+    patch = tmp_path / "platform.patch"
+    patch.write_text("+platform = platformio/espressif32@9.8.7\n")
+    assert builder.pinned_platform(patch) == "platformio/espressif32@9.8.7"
+    patch.write_text("+platform = platformio/espressif32@latest\n")
+    with pytest.raises(SystemExit, match="pinned Espressif"):
+        builder.pinned_platform(patch)

@@ -70,6 +70,16 @@ def prepare(source, reset=False):
     audit_filesystems(source)
 
 
+def pinned_platform(patch=PATCH):
+    additions = [line[1:] for line in patch.read_text().splitlines()
+                 if line.startswith("+") and not line.startswith("+++")]
+    values = [line.split("=", 1)[1].strip() for line in additions
+              if re.match(r"platform\s*=", line)]
+    if len(values) != 1 or not re.fullmatch(r"platformio/espressif32@[0-9]+\.[0-9]+\.[0-9]+", values[0]):
+        raise SystemExit("Versioned patch must specify exactly one pinned Espressif platform")
+    return values[0]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path)
@@ -84,6 +94,7 @@ def main():
     if args.reset:
         return
     if args.build:
+        platform = pinned_platform()
         args.output.mkdir(parents=True, exist_ok=True)
         log = args.output / "meshcore-build.log"
         started = datetime.now(timezone.utc).isoformat()
@@ -104,7 +115,7 @@ def main():
             shutil.copyfile(license_path, args.output / ("MeshCore-" + license_path.name))
         metadata = {"source": "https://github.com/meshcore-dev/MeshCore", "commit": MESHCORE_REF,
                     "environment": ENVIRONMENT, "platformio_version": importlib.metadata.version("platformio"),
-                    "platform": "platformio/espressif32@6.11.0", "build_started_utc": started,
+                    "platform": platform, "build_started_utc": started,
                     "build_finished_utc": datetime.now(timezone.utc).isoformat(),
                     "build_log_sha256": hashlib.sha256(log.read_bytes()).hexdigest(), "sha256": hashlib.sha256(image).hexdigest(),
                     "size": len(image), "flash_offset": "0x220000", "hardware_validated": False,
