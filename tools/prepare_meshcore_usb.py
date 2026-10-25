@@ -30,6 +30,11 @@ FS_CALL = re.compile(r"(?:SPIFFS|LittleFS)\s*\.\s*begin\s*\(|\.\s*format\s*\("
 
 
 def audit_filesystems(source):
+    """Audit tracked .c/.cpp/.h/.ino only, including tracked lib/ sources.
+
+    Not a transitive audit: generated .pio dependencies, installed frameworks,
+    other file extensions and indirect/wrapped storage calls are unreviewed.
+    """
     allowed = {(r["path"], r["text"]) for r in json.loads(AUDIT.read_text())}
     names = subprocess.check_output(["git", "ls-files"], cwd=source, text=True).splitlines()
     for name in names:

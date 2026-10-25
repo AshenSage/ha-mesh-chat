@@ -183,3 +183,9 @@ Executed: `python -m pytest -q` — 98 passed in 2.41s; `git diff --check` passe
 Rechecked build metadata and the single platform addition in meshcore-usb-lab.patch. Removed duplicated hardcoded metadata value; parse exactly one versioned Espressif platform from the patch before starting a build. Test changes a synthetic patch version and rejects a floating platform. Exact commands: ../mesh-lab-venv/bin/python -m pytest -q; git diff --check. No compilation or device operations.
 
 Executed: `python -m pytest -q` — 99 passed in 2.12s; `git diff --check` passed. No device operations.
+
+## R2-P3-4 — document tracked-source-only limits of the storage audit
+
+Rechecked actual git ls-files and extension filter in audit_filesystems. Function contract and operator/durability docs now enumerate excluded .pio dependencies/frameworks/generated code/extensions and hidden wrappers. No claim of transitive or whole-program isolation. Documentation-only clarification; retained all existing audit tests, added no implementation-mirroring test. Exact commands: ../mesh-lab-venv/bin/python -m pytest -q; git diff --check. No compile/device operations.
+
+Executed: `python -m pytest -q` — 99 passed in 1.97s; `git diff --check` passed. No device operations.
