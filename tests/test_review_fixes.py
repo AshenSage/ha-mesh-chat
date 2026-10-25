@@ -95,3 +95,25 @@ def test_a3_read_only_cap_observation_and_write_gate(cap, tmp_path, monkeypatch)
             with pytest.raises(LabError, match="PSRAM cap 2"):
                 radio.select("meshcore", {}, tmp_path)
     assert closed == ["reset", "close"]
+
+
+def test_a4_allowlist_and_readback_hashes(tmp_path, monkeypatch):
+    import verify_reference_bundle as checker
+    path = tmp_path / "prebuilt/bootloader.bin"
+    path.parent.mkdir()
+    path.write_bytes(b"source bootloader")
+    manifest = {"commit": "pinned", "files": {"prebuilt/bootloader.bin": {
+        "size": path.stat().st_size, "sha256": checker.sha(path.read_bytes())}}}
+    assert not checker.verify(tmp_path, manifest)["bootloader_readback_verified"]
+    monkeypatch.setattr(checker, "bootloader_after_header_options", lambda _: b"header-adjusted")
+    readback = tmp_path / "readback.bin"
+    readback.write_bytes(b"header-adjusted")
+    report = checker.verify(tmp_path, manifest, readback)
+    assert report["bootloader_source_sha256"] != report["bootloader_readback_sha256"]
+    assert not report["hardware_validated"]
+    readback.write_bytes(b"corrupt")
+    with pytest.raises(ValueError, match="readback differs"):
+        checker.verify(tmp_path, manifest, readback)
+    path.write_bytes(b"wrong source")
+    with pytest.raises(ValueError, match="not allowlisted"):
+        checker.verify(tmp_path, manifest)

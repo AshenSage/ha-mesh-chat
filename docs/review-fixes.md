@@ -19,3 +19,9 @@ Executed: `python -m pytest -q` — 20 passed in 0.36s; `git diff --check` passe
 Rechecked Radio.__enter__/select lines 71–115 and inspected esptool 4.11.0 ESP32S3ROM get_psram_cap/get_chip_features source. Read-only inspection records cap/features; select requires cap 2. Fake ROM contexts cover caps 0/1/2/3 and cleanup. Real V4-R2 cap correspondence is NOT RUN.
 
 Executed: `python -m pytest -q` — 24 passed in 0.41s; `git diff --check` passed. No device operations.
+
+## A4 — allowlist pinned reference binaries and check offline bootloader readback
+
+Rechecked current DOCS first-flash steps 49–65 and esptool 4.11 _update_image_flash_params. Committed exact SHA-256/size provenance for all five pinned reference files. Offline checker validates input files and an optionally supplied readback against the header-adjusted expected bytes. Executed the checker against the cached reference files, without device access. Tests reject corrupt source/readback and distinguish source/written hashes. Hardware readback remains NOT RUN.
+
+Executed: `python -m pytest -q` — 25 passed in 0.48s; `git diff --check` passed. No device operations.

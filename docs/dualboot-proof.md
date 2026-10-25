@@ -54,7 +54,8 @@ Factory MAC (or private record reference):
 Host model / architecture / Proxmox and USB mapping where applicable:
 HAOS / Supervisor / HA Core versions:
 Lab app version + repository commit:
-Bootloader / selector source, version, SHA256:
+Bootloader / selector source, version, source SHA256:
+Bootloader header options, source/written header bytes, exact readback length + SHA256:
 Partition-table SHA256:
 MeshCore source commit, build environment, patch set, app SHA256:
 Meshtastic version, source/provenance, app SHA256:

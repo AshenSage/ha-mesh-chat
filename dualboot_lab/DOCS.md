@@ -50,7 +50,7 @@ For a first bench installation, use the reference checkout at the pinned commit 
 
 1. Confirm the exact board and 16 MB flash with esptool, and connect the matching antenna.
 2. Read and preserve the **entire original 16 MB flash** with esptool `read_flash 0 0x1000000 ORIGINAL-BACKUP.bin`. Check the file size and record SHA-256. This is separate from the lab's later prepared-board snapshot. Never publish raw backups; they may contain private identities and channel keys.
-3. Stop the HA lab while using external esptool. Validate the supplied binary partition table with `tools/check_lab_table.py` before writing it. A CSV alone is insufficient.
+3. Run `python tools/verify_reference_bundle.py PATH_TO_PINNED_REFERENCE` before any installation; every reference binary must match `firmware/reference-sha256.json`. A matching hash is byte provenance, not proof of source correctness or hardware compatibility. Stop the HA lab while using external esptool. Validate the supplied binary partition table with `tools/check_lab_table.py` before writing it. A CSV alone is insufficient.
 4. Only then explicitly flash the six components at these offsets. Use esptool 4.11.0, `--chip esp32s3`, the exact selected `--port`, `write_flash --flash_mode dio --flash_freq 80m --flash_size 16MB`. Do not erase the whole flash or reuse an important standalone profile expecting automatic migration.
 
 | Offset | Experimental component |
@@ -61,6 +61,8 @@ For a first bench installation, use the reference checkout at the pinned commit 
 | `0x20000` | Reference `prebuilt/selector.bin` |
 | `0x220000` | Our prepared `meshcore-usb-lab.bin` |
 | `0x680000` | Reference `meshtastic/firmware.bin` |
+
+The explicit dio/80m/16MB options may rewrite bootloader header bytes and its appended digest. AFTER a separately authorised flash, read back exactly the bootloader file length from address 0 to a private local file. Run `python tools/verify_reference_bundle.py PATH_TO_PINNED_REFERENCE --bootloader-readback READBACK.bin`; it compares against esptool 4.11's exact offline header transformation. Record source and readback hashes, header bytes, read length and command options. This task performs none of those hardware steps.
 
 Record all component SHA-256 hashes. First select and boot one firmware using the reference selector if needed. Finish its initial profile setup. Manually select and finish setup of BOTH profiles before enrolment; never rely on a first lab switch to create the second identity. Do not apply OTA updates or change profiles during a measured round-trip run. The lab is allowed to fail here: USB runtime/control incompatibility is a result to diagnose, not a reason to weaken verification.
 
