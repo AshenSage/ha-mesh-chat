@@ -1,6 +1,8 @@
 # Feature requirements
 
-**Stage: Requirements gathering · Accepted scope, implementation pending**
+**Stage: Later product requirements · Deferred behind the dualboot proof**
+
+**2026-10-25 staging decision:** first prove stable, reproducible MeshCore ↔ Meshtastic USB switching in Home Assistant. The isolated [Dualboot Lab and acceptance gate](dualboot-proof.md) are the current implementation focus. The features below remain the later product requirements; they are not prerequisites for an experimental bench test and are not advertised as delivered by the lab. In particular the lab has no chat/message recovery, schedules or complete replacement restore flow.
 
 Accepted describes the desired product, not verified technical support. Firmware and hardware compatibility must be validated before release. See [planning and open decisions](planning.md) for pending choices and technical prerequisites.
 

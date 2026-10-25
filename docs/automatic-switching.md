@@ -1,6 +1,8 @@
 # Automatic switching
 
-**Stage: Requirements gathering · Feature agreed · Implementation pending**
+**Stage: Later product requirements · Deferred behind the dualboot proof**
+
+The current [Dualboot Lab](dualboot-proof.md) tests manual HA requests and bounded bench-test repetitions only. It has no operating schedules, comparison mode or message synchronization. Build these features only after stable, reproducible HA-controlled dualboot is demonstrated.
 
 ## Operating modes
 

@@ -1,8 +1,20 @@
 # Planning and open decisions
 
-**Stage: Requirements gathering · No implementation started**
+**Stage: Experimental dualboot proof · Hardware validation pending**
 
-The [feature requirements](requirements.md) and [automatic switching requirements](automatic-switching.md) contain the agreed scope. Items under Open product decisions remain proposals; they do not add accepted features or remove existing ones.
+## Immediate milestone: USB dualboot in HA
+
+Decision, 2026-10-25: make stable, reproducible dualboot the core of this repo first. Defer further product decisions and implementation until the foundation works in Home Assistant. This is an explicit staging decision; it does not discard the later product scope.
+
+The [Dualboot Lab](../dualboot_lab/DOCS.md) provides the isolated test implementation. The [proof plan](dualboot-proof.md) defines the acceptance gate and hardware evidence. Start on Proxmox/HAOS, then reproduce on Raspberry Pi/HAOS before declaring both hosts supported.
+
+- Current implementation: USB preflight, strict partition checks, private full-flash snapshot, protocol/profile baselines, experimental OTA boot-selection writes, bounded cycle runner and persistent reports.
+- Current prerequisite: prepare compatible USB-capable firmware and provision explicitly. The reference BLE bundle alone does not satisfy the proof.
+- Normal switching must be hands-off; buttons are allowed only for initial provisioning and recovery and must be recorded when used.
+- No chat, outbox, schedules or automated message sending in this milestone. Do not run against a production radio carrying important messages.
+- Unit tests or container builds are software evidence, not hardware evidence. No hardware acceptance row is passed yet.
+
+The [feature requirements](requirements.md) and [automatic switching requirements](automatic-switching.md) contain the agreed later scope. Items under Open product decisions remain proposals, deferred until the dualboot gate passes; they do not add accepted features or remove existing ones.
 
 ## Recorded decisions
 

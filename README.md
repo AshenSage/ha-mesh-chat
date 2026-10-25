@@ -4,13 +4,34 @@
 
 **One radio. Two networks. One Home Assistant interface.**
 
-![Status: Requirements gathering](https://img.shields.io/badge/status-requirements_gathering-64748b?style=flat-square)
+![Status: Dualboot proof](https://img.shields.io/badge/status-experimental_dualboot_proof-d69e36?style=flat-square)
 ![Hardware: Heltec V4](https://img.shields.io/badge/hardware-Heltec_V4-0891b2?style=flat-square)
 ![Platform: Home Assistant](https://img.shields.io/badge/platform-Home_Assistant-18bcf2?style=flat-square)
 
 </div>
 
-> **Requirements gathering.** We are defining features, behaviour and interface requirements. This repository contains documentation only; implementation and hardware validation have not started.
+> **Current focus: prove USB dualboot in Home Assistant.** An experimental HAOS app (add-on) and software tests are now included. Hardware stability is **not yet validated**. The full chat product is deferred until this foundation is reproducible.
+
+## Start here: Dualboot Lab
+
+The core of this repository is now the [Dualboot Lab](dualboot_lab/DOCS.md):
+
+1. Inspect the Heltec V4's chip, 16 MB flash and actual partition table over USB.
+2. Enrol the prepared dualboot board and save a complete private flash backup.
+3. Record a real USB firmware response and the first profile baseline.
+4. Request MeshCore → Meshtastic and Meshtastic → MeshCore from HA. Only boot-selection metadata is written; firmware apps and profile partitions are not reflashed during a switch.
+5. Reconnect, check the target protocol twice and compare identity/selected settings with its baseline.
+6. Run bounded round-trip tests and export a JSON report. Stop on the first failure; never silently retry or resume after a restart.
+
+**Success gate:** ordinary switching must work from HA without touching the board, with repeatable results, preserved profiles, restart/reconnect handling and evidence on both target hosts. Initial provisioning or recovery may use buttons; needing a button during an ordinary switch fails the gate. See the [test plan and evidence template](docs/dualboot-proof.md).
+
+Add this repository URL in the HA app/add-on store, then install **Mesh Chat Dualboot Lab**. It is an experimental Supervisor app, **not a HACS integration**. Start manually; write access is off by default. See [installation and firmware preparation](dualboot_lab/DOCS.md).
+
+**Not turnkey firmware yet:** the upstream reference bundles MeshCore BLE, not the USB companion needed for runtime verification. It also contains conflicting source partition tables. A pinned [USB build preparation script](tools/prepare_meshcore_usb.py) and manually triggered build workflow are provided. Initial flashing remains a separate, explicit lab procedure. No tested firmware bundle is being advertised or automatically downloaded.
+
+## Later product scope
+
+Everything below describes the agreed later product, not features delivered by the lab. Chat, history/outbox, notifications, schedules, comparison reports, guided provisioning and complete replacement recovery remain deferred until the dualboot gate passes.
 
 ## How it should work
 
@@ -53,7 +74,7 @@ Comparison mode must balance observation times, retain both profiles and histori
 - **Headless operation:** intended to work without a display; still to be validated.
 - **Required host platforms:** Home Assistant OS in a Proxmox VM (amd64, USB passthrough) and directly on Raspberry Pi (aarch64, direct USB). Both must support the full feature set, including flashing and recovery.
 
-Planned distribution: **HACS**, with configuration in the HA UI. Each household uses its own radio and profiles; no fixed entity IDs, USB paths or server addresses.
+Later product distribution: **HACS**, with configuration in the HA UI; a companion app may be needed. The current lab is installed through the Supervisor app store. Each household uses its own radio and profiles; no fixed entity IDs, USB paths or server addresses.
 
 ## Before a release
 

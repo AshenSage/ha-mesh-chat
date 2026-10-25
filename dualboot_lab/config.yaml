@@ -1,0 +1,28 @@
+name: Mesh Chat Dualboot Lab
+version: 0.1.0
+slug: mesh_chat_dualboot_lab
+description: Experimental Heltec V4 USB dualboot verification; no chat or schedules
+url: https://github.com/AshenSage/ha-mesh-chat
+arch:
+  - amd64
+  - aarch64
+startup: application
+boot: manual
+init: false
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:swap-horizontal-bold
+panel_title: Dualboot Lab
+panel_admin: true
+uart: true
+usb: true
+udev: true
+backup: cold
+options:
+  device: ""
+  board_confirmed: false
+  allow_boot_selection_write: false
+schema:
+  device: str
+  board_confirmed: bool
+  allow_boot_selection_write: bool

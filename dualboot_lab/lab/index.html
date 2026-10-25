@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="de">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mesh Chat · Dualboot Lab</title>
+<style>
+ :root{color-scheme:dark;font-family:system-ui,sans-serif;background:#101723;color:#ecf1f8}
+ body{max-width:1000px;margin:auto;padding:24px}h1{margin:8px 0}p{line-height:1.5;color:#b7c4d7}
+ .badge{color:#82d7e8;font-size:.8rem;letter-spacing:.12em}section{background:#1a2637;border:1px solid #31435a;border-radius:16px;padding:20px;margin:18px 0}
+ button,select,input{font:inherit;padding:12px;border-radius:10px;border:1px solid #50647e;background:#24364d;color:#fff;margin:4px}button{cursor:pointer}button:hover{background:#31516b}button:disabled{opacity:.45;cursor:wait}button.primary{background:#12677c}
+ .row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}.warn{color:#f2ca81}.success{color:#87dfbb}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.85rem;max-height:460px;overflow:auto}a{color:#82d7e8}label{display:block}input[type=number]{width:64px}
+ #feedback{min-height:24px}li{margin:10px 0}small{color:#b7c4d7}@media(max-width:540px){body{padding:12px}section{padding:14px}button{width:100%;margin:4px 0}}
+</style>
+<div class="badge">MESH CHAT / EXPERIMENTELL</div>
+<h1>Dualboot Lab</h1>
+<p>Ein Heltec V4. Zwei Firmwares. Zuerst beweisen wir den zuverlässigen Wechsel über USB in Home Assistant.</p>
+<section>
+ <strong id="connection">Konfiguration wird geladen …</strong>
+ <p class="warn">USB-Prüfungen unterbrechen die laufende Firmware. Nur das Labor darf auf den gewählten Port zugreifen. Noch kein Nachweis für stabile Hardwarefunktion.</p>
+ <small>Voraussetzung: vorbereitete Dualboot-Installation mit MeshCore USB Companion und Meshtastic USB. Das BLE-Bundle der Referenz reicht für diese Prüfung nicht aus. Anleitung im Dokumentations-Tab des Add-ons.</small>
+</section>
+<section>
+ <h2>1 · Prüfen und sichern</h2>
+ <p>Die Prüfung liest Chip, Flashgrösse, Partitionen und Bootauswahl. Die Sicherung legt ein vollständiges Flash-Abbild im privaten Add-on-Speicher ab.</p>
+ <div class="row"><button data-action="inspect">USB und Layout prüfen</button><button data-action="enrol">Testgerät registrieren + sichern</button></div>
+ <p><small>Eine unbekannte Aufteilung wird angezeigt und für Schreibversuche gesperrt. Das Labor installiert keine Firmware.</small></p>
+</section>
+<section>
+ <h2>2 · Firmware bestätigen und wechseln</h2>
+ <p>Eine echte USB-Protokollantwort bestätigt die laufende Firmware. Identität und ausgewählte Einstellungen werden mit ihrem Ausgangszustand verglichen.</p>
+ <label for="network">Ziel / Ausgangs-Firmware</label><select id="network"><option value="meshcore">MeshCore</option><option value="meshtastic">Meshtastic</option></select>
+ <div class="row"><button data-action="baseline">Ausgangszustand der laufenden Firmware erfassen</button><button class="primary" data-action="switch">Zur gewählten Firmware wechseln</button></div>
+ <p><small>Beim ersten Start der zweiten Firmware wird ihr Ausgangszustand erfasst. Erst spätere Besuche können den Erhalt ihres Profils bestätigen. Ein Rücklesen der Bootauswahl allein zählt nie als erfolgreicher Wechsel.</small></p>
+</section>
+<section>
+ <h2>3 · Wiederholbarkeit testen</h2>
+ <p>Beide Ausgangszustände müssen bekannt sein. Der Test startet auf der gewählten Firmware und wechselt je Runde hin und zurück. Beim ersten Fehler stoppt er.</p>
+ <label for="cycles">Vollständige Runden</label><input id="cycles" type="number" min="1" max="20" value="3">
+ <button class="primary" data-action="cycle">Rundentest starten</button>
+ <p><small>Erstes Ziel: 3 Runden. Anschliessend 20 Runden auf jedem Host sowie Neustart- und Stromunterbruchtests gemäss Testplan.</small></p>
+</section>
+<p id="feedback" role="status" aria-live="polite"></p>
+<section><div class="row"><h2>Testprotokoll</h2><a href="api/report" download>JSON herunterladen</a></div><pre id="report">Noch kein Test.</pre></section>
+<script>
+ const feedback=document.querySelector('#feedback');let busy=false;
+ async function refresh(){try{const r=await fetch('api/status');if(!r.ok)throw Error('Status nicht erreichbar');const s=await r.json();busy=s.busy;
+ document.querySelector('#connection').textContent=(s.options.device||'USB-Gerät in der Add-on-Konfiguration wählen')+' · Bootauswahl schreiben: '+(s.options.allow_boot_selection_write?'freigegeben':'gesperrt');
+ document.querySelectorAll('button').forEach(b=>b.disabled=busy);document.querySelector('#report').textContent=JSON.stringify(s.report,null,2);
+ if(busy){feedback.textContent='Test läuft. Fenster darf geöffnet bleiben; USB-Gerät verbunden lassen.';feedback.className='warn'}
+ else if(s.report.runs.length){const last=s.report.runs.at(-1);feedback.textContent=last.status+(last.error?' · '+last.error:'');feedback.className=last.status==='completed'?'success':'warn'}
+ }catch(e){feedback.textContent=e.message;feedback.className='warn'}}
+ document.querySelectorAll('[data-action]').forEach(b=>b.onclick=async()=>{if(busy)return;busy=true;document.querySelectorAll('button').forEach(x=>x.disabled=true);
+ try{const r=await fetch('api/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:b.dataset.action,network:document.querySelector('#network').value,cycles:Number(document.querySelector('#cycles').value)})});const v=await r.json();if(!r.ok)throw Error(v.error);await refresh()}catch(e){busy=false;document.querySelectorAll('button').forEach(x=>x.disabled=false);feedback.textContent=e.message;feedback.className='warn'}});
+ refresh();setInterval(refresh,2000);
+</script>
+</html>
