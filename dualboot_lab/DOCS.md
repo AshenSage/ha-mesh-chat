@@ -110,3 +110,11 @@ For local UI development set `LAB_LOCAL=1`, `LAB_DATA` to a private test directo
 ### Pinned reset API (C4)
 
 ESP32S3ROM.hard_reset in esptool 4.11 takes no uses_usb argument; its override calls uses_usb_otg internally and delegates the result (or a watchdog path) to the base loader. Fake-transport control-flow tests cover USB/non-USB delegation. Actual native USB reset and container device-node visibility remain NOT RUN.
+
+### Storage and offline selection recovery (C5)
+
+New private files are created with mode 0600 from the first open; JSON updates use private unique temporary files and atomic replacement. A full snapshot also compares its local MD5 with a separate device flash MD5 result. If an interrupted initial enrolment left `flash-*.bin` without a registry, the next enrolment refuses to proceed: preserve/archive and investigate these files instead of silently deleting a possible recovery point.
+
+A corrupt report is quarantined as `report-corrupt-*.json`; startup begins a new report without resuming old jobs. The live report retains 100 runs; overflow rotates to at most five private report archives. Raw snapshots are not automatically deleted by report rotation.
+
+`python tools/prepare_selection_recovery.py JOURNAL.json FRESH-OTADATA.bin --expect-mac TRUSTED_MAC --output PRIVATE_DIRECTORY` reads private files only. It prepares one inactive-sector recovery candidate and a hash/address plan for the journal's previous selection, or reports a no-op. It NEVER opens USB, resets a board or writes flash. A stale file is not evidence of current board state. Before any separate physical recovery, independently verify fresh device identity, layout/builds, current OTA data, candidate size/address/hash and the retained valid sector. The generated plan is not proof of restoration. Hardware recovery remains NOT RUN.

@@ -9,6 +9,7 @@ import asyncio
 import base64
 import contextlib
 import io
+import hashlib
 import json
 import os
 import signal
@@ -20,7 +21,7 @@ import zlib
 from . import diagnostics
 from .diagnostics import phase
 
-from .layout import (EXPECTED, FLASH_SIZE, NETWORKS, SECTOR, TABLE_OFFSET,
+from .layout import (EXPECTED, FLASH_SIZE, NETWORKS, SECTOR, TABLE_OFFSET, OTA_OFFSET, OTA_SIZE,
                      LabError, digest, plan_selection, selected_slot, validate_table, verify_slot_projects)
 
 
@@ -43,18 +44,25 @@ def install_signal_handlers():
 def save_json(path, value):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    temp = path.with_name(path.name + ".tmp")
-    with temp.open("w") as stream:
-        os.chmod(temp, 0o600)
-        json.dump(value, stream, indent=2, sort_keys=True)
-        stream.flush()
-        os.fsync(stream.fileno())
-    temp.replace(path)
+    temp = path.with_name(path.name + "." + uuid.uuid4().hex + ".tmp")
+    try:
+        with private_open(temp) as stream:
+            json.dump(value, stream, indent=2, sort_keys=True)
+            stream.flush()
+            os.fsync(stream.fileno())
+        temp.replace(path)
+    finally:
+        temp.unlink(missing_ok=True)
     fd = os.open(path.parent, os.O_DIRECTORY)
     try:
         os.fsync(fd)
     finally:
         os.close(fd)
+
+
+def private_open(path, binary=False):
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    return os.fdopen(descriptor, "wb" if binary else "w")
 
 
 def ports():
@@ -137,7 +145,7 @@ class Radio:
             if strict:
                 raise
             return {**result, "layout_supported": False, "reason": str(exc)}
-        selection = self.esp.read_flash(0x1C000, 2 * SECTOR)
+        selection = self.esp.read_flash(OTA_OFFSET, OTA_SIZE)
         result.update(layout_supported=True, selected_slot=selected_slot(selection),
                       bootloader_md5=self.esp.flash_md5sum(0, TABLE_OFFSET),
                       selector_nvs_md5=self.esp.flash_md5sum(*next((r[3], r[4]) for r in EXPECTED if r[0] == "nvs_sel")),
@@ -153,7 +161,7 @@ class Radio:
         current = self.inspect()
         require_same_device(current, registry)
         verify_slot_projects(self.esp.read_flash)
-        previous = self.esp.read_flash(0x1C000, 2 * SECTOR)
+        previous = self.esp.read_flash(OTA_OFFSET, OTA_SIZE)
         plan = plan_selection(previous, network)
         if plan is None:
             return False
@@ -161,7 +169,7 @@ class Radio:
         # Persist the old boot state BEFORE writing. This contains no app/profile data.
         save_json(data / "last-selection.json", {"mac": self.mac, "otadata_hex": previous.hex(),
                   "target": network, "time": time.time(), "status": "pending"})
-        offset = 0x1C000 + sector * SECTOR
+        offset = OTA_OFFSET + sector * SECTOR
         # Compressed stub write has exact 4 KB erase/write extent, no padding
         # to the stub's potentially larger FLASH_WRITE_SIZE.
         packed = zlib.compress(content, 9)
@@ -172,7 +180,7 @@ class Radio:
         self.esp.flash_defl_finish(reboot=False)
         mark_selection(data, "written")
         phase("readback")
-        after = self.esp.read_flash(0x1C000, 2 * SECTOR)
+        after = self.esp.read_flash(OTA_OFFSET, OTA_SIZE)
         expected = bytearray(previous)
         expected[sector * SECTOR:(sector + 1) * SECTOR] = content
         if after != bytes(expected) or selected_slot(after) != NETWORKS[network]:
@@ -298,15 +306,18 @@ def snapshot(radio, data, registry):
     if len(image) != FLASH_SIZE:
         raise LabError("Full flash backup is incomplete")
     validate_table(image[TABLE_OFFSET:TABLE_OFFSET + SECTOR])
+    flash_md5 = radio.esp.flash_md5sum(0, FLASH_SIZE)
+    if hashlib.md5(image).hexdigest() != flash_md5:
+        raise LabError("Full flash backup differs from device flash MD5")
     path = data / ("flash-" + uuid.uuid4().hex + ".bin")
-    with path.open("xb") as stream:
-        os.chmod(path, 0o600)
+    with private_open(path, binary=True) as stream:
         stream.write(image)
         stream.flush()
         os.fsync(stream.fileno())
     if digest(path.read_bytes()) != digest(image):
         raise LabError("Backup readback failed")
     updated = {**registry, "backup": path.name, "backup_sha256": digest(image),
+               "backup_flash_md5": flash_md5,
                "snapshot_at": time.time(), "snapshot_profiles": sorted(registry.get("profiles", {}))}
     save_json(data / "registry.json", updated)
     return updated
@@ -335,6 +346,8 @@ def run(action, configured, data, network=None, *, board_confirmed=False, allow_
                 return info
             if (data / "registry.json").exists():
                 raise LabError("Already enrolled. Archive the lab data before enrolling a different setup")
+            if any(data.glob("flash-*.bin")):
+                raise LabError("Unlinked flash snapshots found; archive and investigate before enrolment")
             if info["selected_slot"] is None:
                 raise LabError("Select and boot one firmware manually before enrolment")
             registry = {**info, "usb": usb,

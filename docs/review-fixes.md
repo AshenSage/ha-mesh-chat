@@ -97,3 +97,17 @@ Executed: `python -m pytest -q` — 58 passed in 0.80s; `git diff --check` passe
 Rechecked middleware, config usb/uart/udev and hard_reset call. Added positive trusted-peer test and rejection of forwarded-header spoofing. Inspected/called pinned S3 reset control flow on an uninitialised fake object: 4.11 derives USB mode internally; adding uses_usb to its override would be invalid. Actual non-admin direct-URL rejection, native USB reset and re-enumerated /dev visibility are new NOT RUN acceptance rows; docs no longer assert backend admin protection based on panel_admin alone.
 
 Executed: `python -m pytest -q` — 62 passed in 1.22s; `git diff --check` passed. No device operations.
+
+## C5 — harden private storage report recovery and offline OTA recovery planning
+
+Rechecked current snapshot/save_json, report startup/persist and all hardcoded OTA offsets. Private files now use exclusive os.open mode 0600 before writes; unique JSON temps are cleaned on errors. Unlinked pre-registry snapshots are detected and preserved. Snapshot bytes cross-check flash_md5sum(0, FLASH_SIZE). Corrupt reports are quarantined and reports rotate (100 live runs, five archives). OTA constants derive from EXPECTED. Added a file-only single-sector recovery planner, never a second device-write path. Tests cover mode at open, hash mismatch, orphan detection, corrupt/rotated reports, candidate sizing/MAC refusal; no physical restore executed.
+
+Executed: `python -m pytest -q` — 66 passed in 0.70s; `git diff --check` passed. No device operations.
+
+## Final software-only verification
+
+A fresh Python 3.12 virtual environment installed the 2-package bootstrap and all 54 dev/build/runtime distributions using `--require-hashes` and `--no-build-isolation`. In that environment: `python -m pytest -q` — 66 passed; `python -m compileall -q dualboot_lab/lab tools` passed; `PYTHONPATH=dualboot_lab python -c 'import lab.server'` passed; `pip check` reported no broken requirements. The first manual import from repository root without PYTHONPATH failed due to that invocation's search path; the corrected invocation above and Docker's /app working directory include the lab package.
+
+The exact versioned source patch was reset/reapplied successfully against the pinned cached checkout, without compiling or accessing hardware. The offline A4 header transformation was evaluated on the allowlisted cached bootloader: source/written header both e903024f and length 15040; the selected dio/80m/16MB options already match this reference, so its expected hash is unchanged. No physical readback was performed. Actual fresh multiarchitecture builds belong to CI; actual HAOS/device results remain NOT RUN.
+
+Open gates: A2 generic descriptors require explicitly identifying firmware builds; A3 real V4-R2 cap correspondence; A5 manual OTA/selector boot hypothesis; B4 filesystem format-on-fail/power-cut/quiesce; B5 shared-NVS namespace comparison; C4 real Ingress non-admin/USB/reset; second-board recovery. No checker or operator template is labelled hardware-validated.

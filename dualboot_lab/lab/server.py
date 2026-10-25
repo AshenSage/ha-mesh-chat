@@ -19,6 +19,8 @@ DATA = Path(os.environ.get("LAB_DATA", "/data"))
 LOCAL = os.environ.get("LAB_LOCAL") == "1"
 STARTUP_TIMEOUT = 30
 TERMINATION_GRACE = 15
+MAX_RUNS = 100
+MAX_REPORT_ARCHIVES = 5
 
 
 def now():
@@ -47,7 +49,15 @@ class Lab:
         self.task = None
         self.process = None
         self.active_run = None
-        self.state = json.loads(self.path.read_text()) if self.path.exists() else {"runs": []}
+        try:
+            self.state = json.loads(self.path.read_text()) if self.path.exists() else {"runs": []}
+            if not isinstance(self.state, dict) or not isinstance(self.state.get("runs"), list) or any(
+                    not isinstance(run, dict) or "status" not in run for run in self.state["runs"]):
+                raise ValueError("Invalid report structure")
+        except (ValueError, UnicodeError):
+            quarantined = self.path.with_name("report-corrupt-" + uuid.uuid4().hex + ".json")
+            self.path.replace(quarantined)
+            self.state = {"runs": [], "report_recovery": {"status": "quarantined", "file": quarantined.name}}
         # Never silently resume a switch/cycle after a host/add-on restart.
         for run in self.state["runs"]:
             if run["status"] == "running":
@@ -56,6 +66,16 @@ class Lab:
         self.persist()
 
     def persist(self):
+        completed = [run for run in self.state["runs"] if run.get("status") != "running"]
+        count = max(0, len(self.state["runs"]) - MAX_RUNS)
+        expired = completed[:count]
+        if expired:
+            archive = self.data / ("report-archive-" + str(time.time_ns()) + ".json")
+            save_json(archive, {"runs": expired})
+            expired_ids = {id(run) for run in expired}
+            self.state["runs"] = [run for run in self.state["runs"] if id(run) not in expired_ids]
+            for old in sorted(self.data.glob("report-archive-*.json"))[:-MAX_REPORT_ARCHIVES]:
+                old.unlink()
         save_json(self.path, self.state)
 
     def record_phase(self, event, action):

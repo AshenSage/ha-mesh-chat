@@ -12,6 +12,8 @@
 
 > **Current focus: prove USB dualboot in Home Assistant.** An experimental HAOS app (add-on) and software tests are now included. Hardware stability is **not yet validated**. The full chat product is deferred until this foundation is reproducible.
 
+> **Post-review readiness:** the current reference apps have generic `arduino-lib-builder` project descriptors and are refused by the new pre-write slot guard. The manual bootloader/OTA hypothesis, actual R2 cap observation, filesystem power-cut durability and HAOS access/USB checks are still NOT RUN. This branch is ready for software review, **not cleared for a first flash or unattended rounds**. See the [per-point fix/test record](docs/review-fixes.md).
+
 ## Start here: Dualboot Lab
 
 The core of this repository is now the [Dualboot Lab](dualboot_lab/DOCS.md):

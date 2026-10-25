@@ -26,6 +26,7 @@ EXPECTED = (
     ("mc_spiffs", 1, 0x82, 0xDF0000, 0x200000),
     ("coredump", 1, 3, 0xFF0000, 0x10000),
 )
+OTA_OFFSET, OTA_SIZE = next((row[3], row[4]) for row in EXPECTED if row[0] == "otadata")
 
 
 class LabError(Exception):

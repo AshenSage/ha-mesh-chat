@@ -14,7 +14,7 @@ from test_dualboot_lab import table
 def test_a1_snapshot_captures_both_profiles_and_retains_previous(tmp_path, monkeypatch):
     monkeypatch.setattr(worker, "FLASH_SIZE", 0x9000)
     image = b"\xff" * 0x8000 + table()
-    radio = SimpleNamespace(esp=SimpleNamespace(read_flash=lambda *_: image))
+    radio = SimpleNamespace(esp=SimpleNamespace(read_flash=lambda *_: image, flash_md5sum=lambda *_: __import__("hashlib").md5(image).hexdigest()))
     old = tmp_path / "old.bin"
     old.write_bytes(b"old recovery point")
     registry = {"backup": old.name, "profiles": {n: {"identity_sha256": n} for n in NETWORKS}}
@@ -361,3 +361,66 @@ def test_c4_pinned_s3_reset_derives_usb_mode_internally(usb, monkeypatch):
     esp.read_reg = lambda addr: esp.GPIO_STRAP_SPI_BOOT_MASK if addr == esp.GPIO_STRAP_REG else 0
     esp.hard_reset()  # no constructor or serial transport
     assert observed == [usb]
+
+
+def test_c5_corrupt_report_is_quarantined_and_rotation_is_bounded(tmp_path, monkeypatch):
+    import lab.server as server
+    (tmp_path / "report.json").write_text("{broken")
+    lab = Lab(tmp_path)
+    assert lab.state["report_recovery"]["status"] == "quarantined"
+    assert list(tmp_path.glob("report-corrupt-*.json"))[0].read_text() == "{broken"
+    monkeypatch.setattr(server, "MAX_RUNS", 2)
+    monkeypatch.setattr(server, "MAX_REPORT_ARCHIVES", 2)
+    for index in range(8):
+        lab.state["runs"].append({"status": "completed", "id": index})
+        lab.persist()
+    assert [run["id"] for run in lab.state["runs"]] == [6, 7]
+    assert len(list(tmp_path.glob("report-archive-*.json"))) == 2
+
+
+def test_c5_private_file_mode_and_failed_backup_md5(tmp_path, monkeypatch):
+    monkeypatch.setattr(worker, "FLASH_SIZE", 0x9000)
+    path = tmp_path / "private.bin"
+    with worker.private_open(path, binary=True) as stream:
+        assert path.stat().st_mode & 0o777 == 0o600  # already private before any write
+        stream.write(b"test")
+    with pytest.raises(FileExistsError):
+        worker.private_open(path)
+    image = b"\xff" * 0x8000 + table()
+    radio = SimpleNamespace(esp=SimpleNamespace(read_flash=lambda *_: image, flash_md5sum=lambda *_: "bad"))
+    with pytest.raises(LabError, match="differs from device flash MD5"):
+        worker.snapshot(radio, tmp_path, {})
+    assert not list(tmp_path.glob("flash-*.bin"))
+
+
+def test_c5_recovery_prepares_only_offline_single_sector_candidate(tmp_path):
+    from prepare_selection_recovery import prepare
+    from test_dualboot_lab import otadata
+    from lab.layout import OTA_OFFSET, SECTOR
+    journal = {"mac": "trusted", "status": "written", "otadata_hex": otadata(1).hex()}
+    result = prepare(journal, otadata(1, 2), "trusted", tmp_path / "candidate")
+    assert result["status"] == "manual_candidate_not_executed"
+    assert result["offset"] in (OTA_OFFSET, OTA_OFFSET + SECTOR)
+    assert result["size"] == SECTOR and result["hardware_validated"] is False
+    assert (tmp_path / "candidate/recovery-sector.bin").stat().st_size == SECTOR
+    with pytest.raises(LabError, match="MAC/status"):
+        prepare(journal, otadata(1, 2), "other-device", tmp_path / "wrong")
+
+
+def test_c5_unlinked_snapshot_blocks_enrolment(tmp_path, monkeypatch):
+    (tmp_path / "flash-orphan.bin").write_bytes(b"retain for investigation")
+    class FakeRadio:
+        def __init__(self, *_):
+            pass
+        def __enter__(self):
+            return self
+        def __exit__(self, *_):
+            pass
+        def inspect(self, **_):
+            return {"selected_slot": 0}
+    monkeypatch.setattr(worker, "Radio", FakeRadio)
+    monkeypatch.setattr(worker, "resolve_port", lambda *_: {"device": "fake"})
+    monkeypatch.setattr(worker, "snapshot", lambda *_: pytest.fail("must not create a second enrolment snapshot"))
+    with pytest.raises(LabError, match="Unlinked flash snapshots"):
+        worker.run("enrol", "fake", tmp_path, board_confirmed=True)
+    assert (tmp_path / "flash-orphan.bin").read_bytes() == b"retain for investigation"
