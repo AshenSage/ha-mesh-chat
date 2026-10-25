@@ -117,3 +117,51 @@ def test_a4_allowlist_and_readback_hashes(tmp_path, monkeypatch):
     path.write_bytes(b"wrong source")
     with pytest.raises(ValueError, match="not allowlisted"):
         checker.verify(tmp_path, manifest)
+
+
+def test_b2_phase_journal_and_private_sanitized_debug(tmp_path, monkeypatch):
+    from lab import diagnostics
+    from test_dualboot_lab import Stub
+    events = []
+    monkeypatch.setattr(diagnostics, "SINK", events.append)
+    radio = worker.Radio("fake")
+    radio.mac, radio.psram_cap, radio.esp = "00:11", 2, Stub()
+    radio.inspect = lambda: {"mac": radio.mac}
+    assert radio.select("meshtastic", {"mac": radio.mac}, tmp_path)
+    path = tmp_path / "last-selection.json"
+    assert json.loads(path.read_text())["status"] == "written"
+    worker.mark_selection(tmp_path, "verified")
+    assert json.loads(path.read_text())["status"] == "verified"
+    assert [x["phase"] for x in events] == ["write", "readback"]
+    diagnostics.log_exception(tmp_path, RuntimeError("Failed to connect secret-payload-123 key=private"))
+    log = (tmp_path / "debug.jsonl").read_text()
+    assert "RuntimeError" in log and "Failed to connect" in log
+    assert "secret" not in log and "private" not in log
+    assert (tmp_path / "debug.jsonl").stat().st_mode & 0o777 == 0o600
+
+
+def test_b2_parent_retains_last_phase_on_error(tmp_path, monkeypatch):
+    import lab.server as server
+    async def scenario():
+        stream = asyncio.StreamReader()
+        stream.feed_data(b'{"type":"phase","phase":"write"}\n')
+        stream.feed_data(b'{"type":"result","ok":false,"error":"failed","error_phase":"write"}\n')
+        stream.feed_eof()
+        class Process:
+            stdout, returncode = stream, None
+            async def wait(self):
+                self.returncode = 1
+                return 1
+        async def create(*_, **__):
+            return Process()
+        monkeypatch.setattr(server.asyncio, "create_subprocess_exec", create)
+        lab = Lab(tmp_path)
+        run = {"status": "running"}
+        lab.state["runs"].append(run)
+        lab.active_run = run
+        with pytest.raises(LabError, match="failed"):
+            await lab.worker("switch", {"device": "fake"}, "meshcore")
+        assert run["last_phase"] == run["error_phase"] == "write"
+        saved = json.loads((tmp_path / "report.json").read_text())["runs"][0]
+        assert saved["last_phase"] == "write"
+    asyncio.run(scenario())

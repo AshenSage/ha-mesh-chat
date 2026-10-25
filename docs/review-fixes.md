@@ -31,3 +31,9 @@ Executed: `python -m pytest -q` — 25 passed in 0.48s; `git diff --check` passe
 Rechecked current proof sequence and the external selector/NVS assumption. Added a separate manual, bidirectional procedure with before/after OTA and nvs_sel evidence, independent runtime observation, immutable builds and power-cycle checks. No manual test was executed and no hardware result was invented. Documentation-only point: existing regression suite was run; the required physical proof remains NOT RUN and blocks lab automation.
 
 Executed: `python -m pytest -q` — 25 passed in 0.34s; `git diff --check` passed. No device operations.
+
+## B2 — persist JSONL phases and boot-selection transaction status
+
+Rechecked current select journal/write/readback, worker main and parent subprocess reader. Added allowlisted inspect/probe/write/readback/reset phases, streamed and persisted by the parent; pending -> written -> verified journal transitions; and a private debug JSONL containing phase/type and safe esptool failure categories, never arbitrary exception/protocol text. Tests cover journal transitions, secret redaction and persisted parent phase on failure. Timeout cleanup is addressed separately in B3.
+
+Executed: `python -m pytest -q` — 27 passed in 0.39s; `git diff --check` passed. No device operations.

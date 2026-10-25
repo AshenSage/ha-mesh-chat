@@ -13,6 +13,7 @@ from aiohttp import web
 
 from .layout import LabError, NETWORKS
 from .worker import save_json
+from .diagnostics import PHASES
 
 DATA = Path(os.environ.get("LAB_DATA", "/data"))
 LOCAL = os.environ.get("LAB_LOCAL") == "1"
@@ -43,6 +44,7 @@ class Lab:
         self.path = data / "report.json"
         self.task = None
         self.process = None
+        self.active_run = None
         self.state = json.loads(self.path.read_text()) if self.path.exists() else {"runs": []}
         # Never silently resume a switch/cycle after a host/add-on restart.
         for run in self.state["runs"]:
@@ -64,9 +66,27 @@ class Lab:
                                                             stderr=asyncio.subprocess.DEVNULL)
         timeout = 600 if action in ("enrol", "resnapshot") else 120
         try:
-            output, _ = await asyncio.wait_for(self.process.communicate(), timeout)
-            result = json.loads(output)
+            deadline = time.monotonic() + timeout
+            result = None
+            while True:
+                line = await asyncio.wait_for(self.process.stdout.readline(), max(0, deadline - time.monotonic()))
+                if not line:
+                    break
+                event = json.loads(line)
+                if event.get("type") == "phase" and event.get("phase") in PHASES:
+                    if self.active_run is not None:
+                        self.active_run["last_phase"] = event["phase"]
+                        self.active_run.setdefault("phase_events", []).append({"time": now(), "action": action,
+                                                                             "phase": event["phase"]})
+                        self.persist()
+                elif event.get("type") == "result":
+                    result = event
+            await asyncio.wait_for(self.process.wait(), max(0, deadline - time.monotonic()))
+            if result is None:
+                raise LabError("Worker ended without a result; phase evidence retained")
             if self.process.returncode != 0 or not result.get("ok"):
+                if self.active_run is not None:
+                    self.active_run["error_phase"] = result.get("error_phase")
                 raise LabError(result.get("error", "USB worker failed"))
             evidence = result["result"]
             if isinstance(evidence, dict):
@@ -108,6 +128,7 @@ class Lab:
         return run["id"]
 
     async def execute(self, run, config):
+        self.active_run = run
         try:
             if run["action"] == "cycle":
                 result = await self.worker("resnapshot", config)
@@ -142,6 +163,7 @@ class Lab:
         finally:
             run["finished"] = now()
             self.persist()
+            self.active_run = None
 
 
 LAB_KEY = web.AppKey("lab", Lab)

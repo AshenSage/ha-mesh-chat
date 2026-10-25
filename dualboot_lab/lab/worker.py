@@ -16,6 +16,8 @@ import sys
 import time
 import uuid
 import zlib
+from . import diagnostics
+from .diagnostics import phase
 
 from .layout import (EXPECTED, FLASH_SIZE, NETWORKS, SECTOR, TABLE_OFFSET,
                      LabError, digest, plan_selection, selected_slot, validate_table, verify_slot_projects)
@@ -72,6 +74,7 @@ class Radio:
 
     def __enter__(self):
         import esptool
+        phase("inspect")
         try:
             self.esp = esptool.detect_chip(self.port, connect_attempts=3)
             if self.esp.CHIP_NAME != "ESP32-S3":
@@ -89,18 +92,22 @@ class Radio:
             if self.size != FLASH_SIZE:
                 raise LabError("The lab requires exactly 16 MB flash")
             return self
-        except BaseException:
-            self.__exit__(None, None, None)
+        except BaseException as exc:
+            self.__exit__(type(exc), exc, exc.__traceback__)
             raise
 
     def __exit__(self, *_):
         if self.esp is not None:
+            if len(_) > 1 and _[1] is not None:
+                _[1].lab_phase = diagnostics.LAST_PHASE
+            phase("reset")
             try:
                 self.esp.hard_reset()
             finally:
                 self.esp._port.close()
 
     def inspect(self, strict=True):
+        phase("inspect")
         table = self.esp.read_flash(TABLE_OFFSET, SECTOR)
         result = {"mac": self.mac, "flash_size": self.size, "table_sha256": digest(table),
                   "psram_cap": self.psram_cap, "chip_features": self.chip_features,
@@ -130,15 +137,18 @@ class Radio:
         sector, content = plan
         # Persist the old boot state BEFORE writing. This contains no app/profile data.
         save_json(data / "last-selection.json", {"mac": self.mac, "otadata_hex": previous.hex(),
-                  "target": network, "time": time.time()})
+                  "target": network, "time": time.time(), "status": "pending"})
         offset = 0x1C000 + sector * SECTOR
         # Compressed stub write has exact 4 KB erase/write extent, no padding
         # to the stub's potentially larger FLASH_WRITE_SIZE.
         packed = zlib.compress(content, 9)
+        phase("write")
         self.esp.flash_defl_begin(len(content), len(packed), offset)
         for number, start in enumerate(range(0, len(packed), self.esp.FLASH_WRITE_SIZE)):
             self.esp.flash_defl_block(packed[start:start + self.esp.FLASH_WRITE_SIZE], number)
         self.esp.flash_defl_finish(reboot=False)
+        mark_selection(data, "written")
+        phase("readback")
         after = self.esp.read_flash(0x1C000, 2 * SECTOR)
         expected = bytearray(previous)
         expected[sector * SECTOR:(sector + 1) * SECTOR] = content
@@ -223,8 +233,18 @@ def load_registry(data):
     return json.loads(path.read_text())
 
 
+def mark_selection(data, status):
+    path = data / "last-selection.json"
+    state = json.loads(path.read_text())
+    required = "pending" if status == "written" else "written"
+    if state.get("status") != required or status not in ("written", "verified"):
+        raise LabError("Invalid boot-selection journal transition")
+    save_json(path, {**state, "status": status, "updated_at": time.time()})
+
+
 def snapshot(radio, data, registry):
     """Read flash into a new recovery point; retain the old one on failure."""
+    phase("snapshot")
     image = radio.esp.read_flash(0, FLASH_SIZE)
     if len(image) != FLASH_SIZE:
         raise LabError("Full flash backup is incomplete")
@@ -271,6 +291,7 @@ def run(action, configured, data, network=None):
     if network not in NETWORKS:
         raise LabError("Choose meshcore or meshtastic")
     backup = data / registry["backup"]
+    phase("verify_backup")
     if not backup.is_file() or digest(backup.read_bytes()) != registry["backup_sha256"]:
         raise LabError("The enrolled full-flash backup is missing or damaged")
     with Radio(usb["device"]) as radio:
@@ -281,6 +302,7 @@ def run(action, configured, data, network=None):
         raise LabError("Current boot selection is unconfirmed")
     # The runtime handshake below, not selected_slot, establishes running firmware.
     time.sleep(3)
+    phase("probe_before")
     before = probe(active, configured, registry)
     if action == "baseline":
         if network != active:
@@ -300,16 +322,20 @@ def run(action, configured, data, network=None):
     # Bound the verification phase in the parent process too. No automatic
     # rollback/reflash/reboot retries if target does not answer.
     time.sleep(5)
+    phase("probe_after_1")
     observed = probe(network, configured, registry)
     first_observation = network not in registry["profiles"]
     if not first_observation:
         compare_profile(observed, registry["profiles"][network])
     time.sleep(5)
+    phase("probe_after_2")
     repeated = probe(network, configured, registry)
     compare_profile(repeated, observed)
     if first_observation:
         registry["profiles"][network] = observed
         save_json(data / "registry.json", registry)
+    if changed:
+        mark_selection(data, "verified")
     return {"status": "first_boot_baseline" if first_observation else
             ("switch_verified" if changed else "already_selected_verified"),
             "from": active, "to": network, "selection_written": changed,
@@ -323,15 +349,22 @@ def main():
     parser.add_argument("--data", default="/data")
     parser.add_argument("--network", choices=tuple(NETWORKS))
     args = parser.parse_args()
+    output = sys.stdout
+    def emit(value):
+        output.write(json.dumps(value) + "\n")
+        output.flush()
+    diagnostics.SINK = emit
     # Third-party debug output may contain protocol data. Discard it; publish
     # only the explicitly selected, non-secret evidence fields above.
     try:
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             result = ports() if args.action == "ports" else run(args.action, args.device, Path(args.data), args.network)
-        print(json.dumps({"ok": True, "result": result}))
+        emit({"type": "result", "ok": True, "result": result})
     except Exception as exc:
+        diagnostics.log_exception(Path(args.data), exc)
         message = str(exc) if isinstance(exc, LabError) else f"{type(exc).__name__}: USB/protocol operation failed; inspect device state"
-        print(json.dumps({"ok": False, "error": message}))
+        emit({"type": "result", "ok": False, "error": message,
+              "error_phase": getattr(exc, "lab_phase", diagnostics.LAST_PHASE)})
         sys.exit(1)
 
 
