@@ -38,13 +38,14 @@ Reference reviewed: `tkh1000/Meshtastic-Meshcore-Dualboot-Heltec-V4-` at commit 
 Prepare the MeshCore source on a development computer (or use the manually triggered GitHub workflow **Build experimental MeshCore USB app**):
 
 ```sh
-python -m pip install platformio==6.1.18 esptool==4.11.0
+python -m pip install --require-hashes -r dualboot_lab/requirements-bootstrap.lock
+python -m pip install --require-hashes --no-build-isolation -r dualboot_lab/requirements-dev.lock
 git clone https://github.com/meshcore-dev/MeshCore.git firmware-work/MeshCore
 git -C firmware-work/MeshCore checkout 81dbae592ffad40b4212bc0b37e82b38da08f4bc
 python tools/prepare_meshcore_usb.py firmware-work/MeshCore --build
 ```
 
-The script requires a clean pinned checkout, patches the SPIFFS mount to `mc_spiffs`, applies the lab partition table to `heltec_v4_companion_radio_usb`, omits the OLED UI and optional external sensor/GPS support for this bench proof, and records the resulting binary hash. It never flashes a device. A local build has succeeded; complete bundle compatibility and headless runtime operation still require hardware evidence. See [software evidence](../docs/software-evidence.md). The source commit is fixed, but upstream transitive PlatformIO libraries are not fully locked yet; archive the actual build log and binary hashes used for each hardware test.
+The script requires a clean pinned checkout, patches the SPIFFS mount to `mc_spiffs`, applies the lab partition table to `heltec_v4_companion_radio_usb`, omits the OLED UI and optional external sensor/GPS support for this bench proof, and records the resulting binary hash. It never flashes a device. A local build has succeeded; complete bundle compatibility and headless runtime operation still require hardware evidence. See [software evidence](../docs/software-evidence.md). The source commit is fixed, but Python runtime/build dependencies have hash-locked release files and external PlatformIO libraries/packages have exact pins; byte-identical rebuilds are not yet demonstrated; archive the actual build log and binary hashes used for each hardware test.
 
 For a first bench installation, use the reference checkout at the pinned commit above, its prebuilt bootloader/table/OTA/selector and Meshtastic app, and the generated `meshcore-usb-lab.bin` instead of its BLE app. Before any first installation:
 
@@ -99,7 +100,8 @@ Automated profile comparison now covers public identity, names, selected radio c
 ## Local software checks
 
 ```sh
-python -m pip install -r dualboot_lab/requirements.txt pytest==8.4.2
+python -m pip install --require-hashes -r dualboot_lab/requirements-bootstrap.lock
+python -m pip install --require-hashes --no-build-isolation -r dualboot_lab/requirements-dev.lock
 python -m pytest -q
 ```
 

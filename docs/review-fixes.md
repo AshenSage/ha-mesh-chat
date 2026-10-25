@@ -79,3 +79,9 @@ Executed: `python -m pytest -q` — 50 passed in 0.56s; `git diff --check` passe
 Rechecked prepare_meshcore_usb.py full current string replacement path. Replaced global ini mutation with a versioned patch that changes only the USB environment, preserving other environments. Exact original/prepared file hashes, repo-wide filesystem-call allowlist, git apply --check, idempotence and --reset prevent partial/unknown edits. Missing/changed/last-section input gets an explicit refusal rather than ValueError. Build checks mc_spiffs in the image and records PlatformIO/platform/timestamps/build-log hash. Synthetic git tests cover prepare/reset, unexpected calls and changed layout; no source build or device action executed in this point.
 
 Executed: `python -m pytest -q` — 53 passed in 0.61s; `git diff --check` passed. No device operations.
+
+## C2 — lock Python and PlatformIO dependencies and pin least-privilege CI actions
+
+Rechecked Dockerfile, direct requirements, source patch and both workflows. Generated Linux Python 3.12 runtime (37), dev/build (54) and bootstrap (2) locks with exact versions and SHA-256 hashes from official PyPI release metadata. Install uses require-hashes/no-build-isolation with locked bootstrap. Platform/external libraries/toolchains are exactly pinned in USB-only patch. Resolved six action tags through GitHub and pinned their commit SHAs; workflows use contents:read and checkout persist-credentials:false. Every architecture build now executes import lab.server inside the container. Tests enforce action/lock/pin/smoke policies; actual fresh multiarch builds remain CI evidence, not HAOS/hardware evidence.
+
+Executed: `python -m pytest -q` — 57 passed in 0.68s; `git diff --check` passed. No device operations.

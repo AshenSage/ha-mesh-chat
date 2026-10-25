@@ -5,7 +5,7 @@
   },
   "variants/heltec_v4/platformio.ini": {
     "original": "9cee194b2da8b49473f1c497737ef2a2e4c6edef8265e55ec248e6ceb8ecfd20",
-    "prepared": "94e42c0241876eda57c7b33f1c3162a5156420a1ad04e057d5dc9a0e3695b48a"
+    "prepared": "f197760502ca68721adaf71541624eb4b36dbab91ccadbbdc91e0e89523fe64e"
   },
   "partitions_mesh_chat_lab.csv": {
     "original": null,
