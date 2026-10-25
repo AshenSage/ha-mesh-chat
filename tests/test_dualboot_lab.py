@@ -12,6 +12,14 @@ from lab.server import Lab
 from lab.worker import Radio, compare_profile, require_same_device, save_json
 
 
+def attested(info):
+    return {**info, "app_md5": info.get("app_md5") or {"ota_0": "mc", "ota_1": "mt"},
+            "profiles": {n: {} for n in ("meshcore", "meshtastic")},
+            "slot_attestation": {n: {"slot": slot, "app_md5": (info.get("app_md5") or
+                {"ota_0": "mc", "ota_1": "mt"})[f"ota_{slot}"], "evidence": "fake USB protocol"}
+                for n, slot in (("meshcore", 0), ("meshtastic", 1))}}
+
+
 def table(entries=EXPECTED):
     raw = b"".join(struct.pack("<HBBII16sI", 0x50AA, kind, subtype, address, size,
                                name.encode().ljust(16, b"\x00"), 0)
@@ -130,6 +138,7 @@ def test_hardware_writer_only_modifies_inactive_ota_sector(tmp_path):
     radio.psram_cap = 2
     radio.esp = Stub()
     info = {"mac": radio.mac, "flash_size": 0x1000000, "table_sha256": "abc", "app_md5": {}}
+    info = attested(info)
     radio.inspect = lambda: info
     assert radio.select("meshtastic", info, tmp_path)
     assert radio.esp.writes == [(0x1D000, SECTOR)]
@@ -143,6 +152,7 @@ def test_storage_failure_prevents_write(tmp_path, monkeypatch):
     radio.psram_cap = 2
     radio.esp = Stub()
     info = {"mac": "00:11"}
+    info = attested(info)
     radio.inspect = lambda: info
     def fail(*_):
         raise OSError("disk full")

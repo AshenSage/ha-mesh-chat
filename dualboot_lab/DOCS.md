@@ -23,7 +23,7 @@ The first read-only inspection reports esptool `get_psram_cap()` and chip featur
 
 Run **USB und Layout prüfen**. This enters ROM/stub mode, reads the chip, JEDEC flash size, partition table and boot metadata, then resets the radio. It interrupts reception even though it does not write flash. A fresh/single-firmware board is expected to report an unsupported layout. No installation or erase happens automatically.
 
-**Current A2 blocker:** the previously compiled MeshCore app and reference Meshtastic app both report `arduino-lib-builder` in their ESP application descriptor. The strict slot guard rejects these generic names. A build with an explicit protocol project name is required for each slot before lab writes; old successful compilation is not evidence of correct slot identity.
+Slot identity is bound to two successful manual-boot USB baseline attestations and the exact hashes of both app slots. Generic `arduino-lib-builder` descriptors are permitted only with those attestations; a non-generic conflicting project name still blocks. Attestation checks run in the first inspect session, before runtime probes or a second ROM session. This software evidence does not replace A5's actual bootloader proof.
 
 ## 2. Prepare firmware once, before the lab switching test
 
@@ -71,8 +71,8 @@ Record all component SHA-256 hashes. First select and boot one firmware using th
 
 1. First finish both firmware profiles manually as described above. Start the lab, run preflight, then **Testgerät registrieren + sichern**. The exact layout is required. The app reads a complete 16 MB prepared-board snapshot, checks the stored hash and binds its registry to the factory MAC, table and app hashes. Raw flash stays in private `/data` and is included in cold app backups. There is no raw-backup download endpoint.
 2. Select the currently running firmware and **Ausgangszustand … erfassen**. A real USB response is required. MeshCore uses `SELF_INFO`; Meshtastic uses completed USB configuration, own node and metadata.
-3. Stop the app, enable `allow_boot_selection_write: true`, start it again. Choose the other firmware and **wechseln**. This is an explicit experimental lab action.
-4. The first lab visit to the already configured other firmware records its baseline and is labelled `first_boot_baseline`; it cannot prove historical profile preservation yet. Return to the original firmware, then back again. Later visits must match the stored identity and selected settings.
+3. Stop the lab and manually boot the other already configured firmware. Start the lab and capture its baseline too. Both USB protocol attestations must exist before any lab switch. A switch never creates a baseline.
+4. Stop the app, enable `allow_boot_selection_write: true`, start it again. Choose the other firmware and **wechseln**. This is an explicit experimental lab action.
 
 After both baselines have been recorded, run the read-only `resnapshot` command to capture both configured profiles. Every round-test start automatically resnapshots before any switch; a snapshot failure stops the run. Earlier recovery points are retained.
 

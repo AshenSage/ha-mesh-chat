@@ -160,6 +160,7 @@ class Radio:
             raise LabError("Boot-selection write requires observed embedded PSRAM cap 2 (2MB)")
         current = self.inspect()
         require_same_device(current, registry)
+        require_slot_attestations(current, registry)
         verify_slot_projects(self.esp.read_flash)
         previous = self.esp.read_flash(OTA_OFFSET, OTA_SIZE)
         plan = plan_selection(previous, network)
@@ -192,6 +193,15 @@ def require_same_device(current, registry):
     for key in ("mac", "flash_size", "table_sha256", "app_md5", "bootloader_md5", "selector_nvs_md5"):
         if current.get(key) != registry.get(key):
             raise LabError(f"Device/layout/build changed ({key}); keep old backup and re-enrol deliberately")
+
+
+def require_slot_attestations(current, registry):
+    for network, slot in NETWORKS.items():
+        record = registry.get("slot_attestation", {}).get(network, {})
+        if (network not in registry.get("profiles", {}) or record.get("slot") != slot
+                or not record.get("evidence") or not record.get("app_md5")
+                or record["app_md5"] != current.get("app_md5", {}).get(f"ota_{slot}")):
+            raise LabError(f"Missing or changed slot attestation ({network}); manually boot and capture both baselines")
 
 
 async def probe_meshcore(port):
@@ -363,6 +373,9 @@ def run(action, configured, data, network=None, *, board_confirmed=False, allow_
     with Radio(usb["device"]) as radio:
         current = radio.inspect()
         require_same_device(current, registry)
+        if action == "switch":
+            require_slot_attestations(current, registry)
+            verify_slot_projects(radio.esp.read_flash)
     active = next((n for n, slot in NETWORKS.items() if slot == current["selected_slot"]), None)
     if active is None:
         raise LabError("Current boot selection is unconfirmed")
@@ -377,7 +390,18 @@ def run(action, configured, data, network=None, *, board_confirmed=False, allow_
             compare_profile(before, registry["profiles"][network])
         else:
             registry["profiles"][network] = before
-            save_json(data / "registry.json", registry)
+        # Bind the successful protocol response to unchanged slot bytes and OTA
+        # selection on both sides of that observation. A5 remains a hardware gate.
+        with Radio(usb["device"]) as radio:
+            confirmed = radio.inspect()
+            require_same_device(confirmed, registry)
+            if confirmed["selected_slot"] != current["selected_slot"]:
+                raise LabError("Boot selection changed during baseline attestation")
+        registry.setdefault("slot_attestation", {})[network] = {
+            "slot": NETWORKS[network], "app_md5": confirmed["app_md5"][f"ota_{NETWORKS[network]}"],
+            "evidence": {"protocol": before["evidence"], "identity_sha256": before["identity_sha256"],
+                         "captured_at": time.time()}}
+        save_json(data / "registry.json", registry)
         return {"status": "baseline_verified", **before}
     if active not in registry["profiles"]:
         raise LabError("Capture the current firmware baseline before the first switch")
@@ -395,22 +419,16 @@ def run(action, configured, data, network=None, *, board_confirmed=False, allow_
     time.sleep(5)
     phase("probe_after_1")
     observed = probe(network, configured, registry)
-    first_observation = network not in registry["profiles"]
-    if not first_observation:
-        compare_profile(observed, registry["profiles"][network])
+    compare_profile(observed, registry["profiles"][network])
     time.sleep(5)
     phase("probe_after_2")
     repeated = probe(network, configured, registry)
     compare_profile(repeated, observed)
-    if first_observation:
-        registry["profiles"][network] = observed
-        save_json(data / "registry.json", registry)
     if changed:
         mark_selection(data, "verified")
-    return {"status": "first_boot_baseline" if first_observation else
-            ("switch_verified" if changed else "already_selected_verified"),
+    return {"status": "switch_verified" if changed else "already_selected_verified",
             "from": active, "to": network, "selection_written": changed,
-            "runtime_checks": 2, "profile_verified": not first_observation, **repeated}
+            "runtime_checks": 2, "profile_verified": True, **repeated}
 
 
 def main():

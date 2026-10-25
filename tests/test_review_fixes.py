@@ -8,7 +8,7 @@ import pytest
 from lab.layout import LabError, NETWORKS, digest
 from lab import worker
 from lab.server import Lab
-from test_dualboot_lab import table
+from test_dualboot_lab import table, attested
 
 
 def test_a1_snapshot_captures_both_profiles_and_retains_previous(tmp_path, monkeypatch):
@@ -54,7 +54,7 @@ def test_a1_cycle_stops_before_switch_when_resnapshot_fails(tmp_path):
     asyncio.run(scenario())
 
 
-@pytest.mark.parametrize("swapped,generic", [(True, False), (False, True)])
+@pytest.mark.parametrize("swapped,generic", [(True, False)])
 def test_a2_swapped_or_generic_slot_projects_prevent_write(tmp_path, swapped, generic):
     from test_dualboot_lab import Stub
     radio = worker.Radio("fake", board_confirmed=True, allow_boot_selection_write=True)
@@ -72,9 +72,10 @@ def test_a2_swapped_or_generic_slot_projects_prevent_write(tmp_path, swapped, ge
         return original_read(offset, size)
     stub.read_flash = read
     radio.esp = stub
-    radio.inspect = lambda: {"mac": radio.mac}
+    record = attested({"mac": radio.mac})
+    radio.inspect = lambda: record
     with pytest.raises(LabError, match="project does not identify"):
-        radio.select("meshtastic", {"mac": radio.mac}, tmp_path)
+        radio.select("meshtastic", record, tmp_path)
     assert stub.writes == []
 
 
@@ -126,8 +127,9 @@ def test_b2_phase_journal_and_private_sanitized_debug(tmp_path, monkeypatch):
     monkeypatch.setattr(diagnostics, "SINK", events.append)
     radio = worker.Radio("fake", board_confirmed=True, allow_boot_selection_write=True)
     radio.mac, radio.psram_cap, radio.esp = "00:11", 2, Stub()
-    radio.inspect = lambda: {"mac": radio.mac}
-    assert radio.select("meshtastic", {"mac": radio.mac}, tmp_path)
+    record = attested({"mac": radio.mac})
+    radio.inspect = lambda: record
+    assert radio.select("meshtastic", record, tmp_path)
     path = tmp_path / "last-selection.json"
     assert json.loads(path.read_text())["status"] == "written"
     worker.mark_selection(tmp_path, "verified")
@@ -424,3 +426,22 @@ def test_c5_unlinked_snapshot_blocks_enrolment(tmp_path, monkeypatch):
     with pytest.raises(LabError, match="Unlinked flash snapshots"):
         worker.run("enrol", "fake", tmp_path, board_confirmed=True)
     assert (tmp_path / "flash-orphan.bin").read_bytes() == b"retain for investigation"
+
+
+def test_r2_1_generic_projects_require_valid_runtime_attestations(tmp_path):
+    from test_dualboot_lab import Stub
+    radio = worker.Radio("fake", board_confirmed=True, allow_boot_selection_write=True)
+    radio.mac, radio.psram_cap, radio.esp = "00:11", 2, Stub()
+    original = radio.esp.read_flash
+    def read(offset, size):
+        raw = original(offset, size)
+        if size == 288:
+            raw = bytearray(raw)
+            raw[80:112] = b"arduino-lib-builder".ljust(32, b"\0")
+            raw = bytes(raw)
+        return raw
+    radio.esp.read_flash = read
+    record = attested({"mac": radio.mac})
+    radio.inspect = lambda: record
+    assert radio.select("meshtastic", record, tmp_path)
+    assert radio.esp.writes == [(0x1D000, 4096)]

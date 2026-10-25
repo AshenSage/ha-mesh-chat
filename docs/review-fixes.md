@@ -111,3 +111,9 @@ A fresh Python 3.12 virtual environment installed the 2-package bootstrap and al
 The exact versioned source patch was reset/reapplied successfully against the pinned cached checkout, without compiling or accessing hardware. The offline A4 header transformation was evaluated on the allowlisted cached bootloader: source/written header both e903024f and length 15040; the selected dio/80m/16MB options already match this reference, so its expected hash is unchanged. No physical readback was performed. Actual fresh multiarchitecture builds belong to CI; actual HAOS/device results remain NOT RUN.
 
 Open gates: A2 generic descriptors require explicitly identifying firmware builds; A3 real V4-R2 cap correspondence; A5 manual OTA/selector boot hypothesis; B4 filesystem format-on-fail/power-cut/quiesce; B5 shared-NVS namespace comparison; C4 real Ingress non-admin/USB/reset; second-board recovery. No checker or operator template is labelled hardware-validated.
+
+## R2-1 — bind slot identity to manual runtime attestations before switching
+
+Rechecked layout.py verify_slot_projects and worker.py inspect/baseline/select at reviewed head. Both manually booted runtimes must be baselined and bound to slot/app MD5. The first switch inspect refuses missing, swapped or changed attestations before any probe; the writer repeats it. Non-generic descriptor conflicts remain blocked, generic Arduino descriptors now work with attestation. Removed first_boot_baseline writes; docs/UI require both manual baselines. Tests include generic images, swapped names/attestations, changed hashes, early refusal and baseline attestation. Executed test commands use ../mesh-lab-venv/bin/python (Python 3.12); no USB, real flash, reset or reboot. A5 and all hardware assumptions remain NOT RUN.
+
+Executed: `python -m pytest -q` — 70 passed in 0.90s; `git diff --check` passed. No device operations.

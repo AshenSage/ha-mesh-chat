@@ -52,7 +52,7 @@ def verify_slot_projects(read_flash):
     for network, slot in NETWORKS.items():
         address = next(row[3] for row in EXPECTED if row[0] == f"ota_{slot}")
         project = app_project(read_flash(address, 288))
-        if project != network and not project.startswith(network + "-"):
+        if project not in ("", "arduino-lib-builder") and project != network and not project.startswith(network + "-"):
             raise LabError(f"ota_{slot} project does not identify {network}; refuse boot-selection write")
         projects[network] = project
     return projects

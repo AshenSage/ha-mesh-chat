@@ -11,10 +11,11 @@ import pytest
 
 from lab import worker
 from lab.layout import LabError, digest
+from test_dualboot_lab import attested, Stub
 
 
 def profile(network):
-    return {"network": network, "identity_sha256": network + "-key", "settings_sha256": network + "-settings"}
+    return {"network": network, "identity_sha256": network + "-key", "settings_sha256": network + "-settings", "evidence": "fake protocol"}
 
 
 @pytest.fixture
@@ -24,13 +25,14 @@ def setup_run(tmp_path, monkeypatch):
             "app_md5": {"ota_0": "mc", "ota_1": "mt"}, "selected_slot": 0}
     backup = tmp_path / "backup.bin"
     backup.write_bytes(b"snapshot")
-    registry = {**info, "backup": backup.name, "backup_sha256": digest(backup.read_bytes()),
+    registry = {**attested(info), "backup": backup.name, "backup_sha256": digest(backup.read_bytes()),
                 "profiles": {n: profile(n) for n in ("meshcore", "meshtastic")}}
     worker.save_json(tmp_path / "registry.json", registry)
     calls, observations, entered = [], [], []
     class FakeRadio:
         def __init__(self, port, **flags):
             self.flags = flags
+            self.esp = Stub()
         def __enter__(self):
             entered.append(True)
             return self
@@ -99,13 +101,14 @@ def test_b1_target_probe_failure_cannot_verify_or_retry(setup_run, target_probe)
     assert json.loads((s.data / "last-selection.json").read_text())["status"] == "written"
 
 
-def test_b1_first_baseline_and_noop_are_not_claimed_as_preservation_or_transition(setup_run):
+def test_b1_missing_target_baseline_cannot_write_and_noop_is_verified(setup_run):
     s = setup_run
     del s.registry["profiles"]["meshtastic"]
     worker.save_json(s.data / "registry.json", s.registry)
-    result = s.run()
-    assert result["status"] == "first_boot_baseline" and result["profile_verified"] is False
-    assert "meshtastic" in worker.load_registry(s.data)["profiles"]
+    with pytest.raises(LabError, match="slot attestation"):
+        s.run()
+    assert not s.calls
+    worker.save_json(s.data / "registry.json", {**s.registry, "profiles": {n: profile(n) for n in ("meshcore", "meshtastic")}})
     result = s.run("meshcore")
     assert result["status"] == "already_selected_verified" and not result["selection_written"]
 
@@ -139,3 +142,29 @@ def test_b1_pinned_esptool_contract_invokes_real_decorated_methods_without_port(
         while "func" in inspect.getclosurevars(function).nonlocals:
             function = inspect.getclosurevars(function).nonlocals["func"]
         inspect.signature(function).bind(*args, **kwargs)
+
+
+@pytest.mark.parametrize("damage", ["missing", "swapped", "hash"])
+def test_r2_1_attestation_failure_precedes_probes_and_select(setup_run, damage):
+    s = setup_run
+    record = s.registry["slot_attestation"]["meshtastic"]
+    if damage == "missing":
+        del s.registry["slot_attestation"]["meshtastic"]
+    elif damage == "swapped":
+        record["slot"] = 0
+    else:
+        record["app_md5"] = "changed"
+    worker.save_json(s.data / "registry.json", s.registry)
+    s.observations.append(AssertionError("probe must not run"))
+    with pytest.raises(LabError, match="slot attestation"):
+        s.run()
+    assert not s.calls and len(s.entered) == 1 and len(s.observations) == 1
+
+
+def test_r2_1_baseline_attests_only_manually_selected_runtime(setup_run):
+    s = setup_run
+    s.registry.pop("slot_attestation")
+    worker.save_json(s.data / "registry.json", s.registry)
+    assert s.run("meshcore", "baseline")["status"] == "baseline_verified"
+    assert worker.load_registry(s.data)["slot_attestation"]["meshcore"]["app_md5"] == "mc"
+    assert not s.calls
