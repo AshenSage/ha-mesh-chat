@@ -255,3 +255,11 @@ def test_b3_phase_timeout_preserves_cause_and_requests_cleanup(tmp_path, monkeyp
         assert lab.active_run["last_phase"] == "reset"
         assert lab.active_run["termination_requested"]
     asyncio.run(scenario())
+
+
+def test_b4_candidate_reboot_apis_exist_without_executing_them():
+    import inspect
+    from meshcore.commands.device import DeviceCommands
+    from meshtastic.node import Node
+    assert inspect.iscoroutinefunction(DeviceCommands.reboot)
+    inspect.signature(Node.reboot).bind(object(), secs=10)

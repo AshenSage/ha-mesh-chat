@@ -55,3 +55,9 @@ Executed: `python -m pytest -q` — 34 passed in 0.51s; `git diff --check` passe
 Rechecked current run (287–368) after phase/permission/cleanup changes. Added full fake-radio orchestration for damaged/missing backups, MAC/table/app drift, both pre-write probes, both target probes, first_boot_baseline and no-op. Added a second current-profile observation before select. Pre-write failures assert zero select calls; post-write failures assert one attempt, unverified journal and no retry (a completed write cannot be retroactively prevented). Contract test actually invokes 4.11.0 decorated compressed-write/read/hash methods on an uninitialised fake-transport object, with no serial port, and checks closure signatures.
 
 Executed: `python -m pytest -q` — 45 passed in 0.56s; `git diff --check` passed. No device operations.
+
+## B4 — record power-cut and graceful-quiesce evidence still required
+
+Rechecked source patch line 51, proof matrix and pinned MeshCore CMD_REBOOT/ESP32Board source plus both Python reboot APIs. Added profile-write power-cut and quiesce acceptance rows. API-availability test executes no commands. Source inspection finds a MeshCore dirty-contact save before esp_restart, but does not prove a full durable barrier. Format-on-fail risk and real power-cut/quiesce tests remain explicit blockers, NOT RUN; no new reboot automation was enabled.
+
+Executed: `python -m pytest -q` — 46 passed in 0.56s; `git diff --check` passed. No device operations.

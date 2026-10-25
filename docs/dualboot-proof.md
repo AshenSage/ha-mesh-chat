@@ -38,6 +38,8 @@ All rows start **NOT RUN**. Do not infer a hardware pass from software tests, st
 | HA Core restart | Restart HA Core on each firmware; app's actual lifecycle recorded; both directions work afterwards | NOT RUN |
 | HAOS reboot | Reboot host/VM on each firmware; no schedule/auto-switch; runtime/profiles recover and both directions work | NOT RUN |
 | Power cycle | Five radio power cycles per firmware; identity/settings retained and USB reconnects | NOT RUN |
+| Power cut during profile writes | On expendable test identities, cut power while each firmware is saving settings/channels/contacts; repeat around filesystem commit boundaries, reconnect and verify both identities and all channel keys without reformat or key regeneration. Restore current snapshot to second board if recovery is needed | NOT RUN |
+| Graceful quiesce candidate | Independently verify protocol reboot/flush behaviour, completion evidence and subsequent ROM entry for each exact build; do not infer filesystem durability from command existence | NOT RUN |
 | USB interruption | Interrupt a bench attempt; report fails/interrupts, no blind retries; device can be inspected/recovered | NOT RUN |
 | Bad layout/device | Unsupported layout, wrong flash size, changed MAC/build and damaged snapshot block writes | NOT RUN |
 | Recovery | Restore the CURRENT post-baseline snapshot to a second matching board with the original unavailable; verify both original identities, channel keys and profiles without regenerating keys; retain the original pre-installation dump too | NOT RUN |
