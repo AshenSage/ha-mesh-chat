@@ -263,3 +263,53 @@ def test_b4_candidate_reboot_apis_exist_without_executing_them():
     from meshtastic.node import Node
     assert inspect.iscoroutinefunction(DeviceCommands.reboot)
     inspect.signature(Node.reboot).bind(object(), secs=10)
+
+
+def test_b7_channel_loss_or_psk_change_changes_fingerprint_without_exposing_key(monkeypatch):
+    from meshtastic.protobuf import config_pb2
+    import meshtastic.serial_interface
+    import base64
+    channels = [SimpleNamespace(index=0, role=1, settings=SimpleNamespace(name="lab", psk=b"private-channel-key"))]
+    interface = SimpleNamespace(myInfo=SimpleNamespace(my_node_num=1),
+        metadata=SimpleNamespace(firmware_version="fake"),
+        getMyNodeInfo=lambda: {"user": {"id": "!00000001", "publicKey": base64.b64encode(b"k"*32).decode()}},
+        localNode=SimpleNamespace(channels=channels, localConfig=SimpleNamespace(lora=config_pb2.Config.LoRaConfig())),
+        close=lambda: None)
+    monkeypatch.setattr(meshtastic.serial_interface, "SerialInterface", lambda **_: interface)
+    first = worker.probe_meshtastic("fake")
+    assert "private-channel-key" not in json.dumps(first)
+    channels[0].settings.psk = b"changed"
+    second = worker.probe_meshtastic("fake")
+    with pytest.raises(LabError, match="Profile changed"):
+        worker.compare_profile(first, second)
+    channels.clear()
+    with pytest.raises(LabError, match="channel configuration is incomplete"):
+        worker.probe_meshtastic("fake")
+
+
+def test_b7_meshcore_contacts_and_channel_keys_are_checked(monkeypatch):
+    from meshcore import MeshCore, EventType
+    state = {"secret": b"private-key-1234", "contacts": {"peer": {"public_key": "ab" * 32, "adv_name": "peer"}}}
+    async def start():
+        return SimpleNamespace(type=EventType.SELF_INFO, payload={"public_key": "cd" * 32})
+    async def query():
+        return SimpleNamespace(type=EventType.DEVICE_INFO, payload={"max_channels": 1})
+    async def channel(index):
+        return SimpleNamespace(type=EventType.CHANNEL_INFO, payload={"channel_idx": index,
+            "channel_name": "lab", "channel_secret": state["secret"]})
+    async def contacts():
+        return SimpleNamespace(type=EventType.CONTACTS, payload=state["contacts"])
+    async def close():
+        pass
+    async def connect(*_, **__):
+        return SimpleNamespace(commands=SimpleNamespace(send_appstart=start, send_device_query=query,
+            get_channel=channel, get_contacts=contacts), disconnect=close)
+    monkeypatch.setattr(MeshCore, "create_serial", connect)
+    first = asyncio.run(worker.probe_meshcore("fake"))
+    assert "private-key-1234" not in json.dumps(first)
+    state["contacts"] = {}
+    second = asyncio.run(worker.probe_meshcore("fake"))
+    assert first["settings_sha256"] != second["settings_sha256"]
+    state["secret"] = b"different-secret"
+    third = asyncio.run(worker.probe_meshcore("fake"))
+    assert second["settings_sha256"] != third["settings_sha256"]

@@ -67,3 +67,9 @@ Executed: `python -m pytest -q` — 46 passed in 0.56s; `git diff --check` passe
 Rechecked current inspect and require_same_device. Added bootloader 0..0x8000 and table-derived nvs_sel MD5 observations/comparison. Full run tests now reject either changed fingerprint before select. Shared NVS is not falsely required to remain byte-identical: added a private, read-only namespace/type/value-hash comparison procedure for both directions, decoder provenance and investigation of legitimate writes. This physical comparison remains NOT RUN.
 
 Executed: `python -m pytest -q` — 48 passed in 0.58s; `git diff --check` passed. No device operations.
+
+## B7 — include channel-key hashes and MeshCore contacts in profile comparisons
+
+Rechecked both probe functions and pinned protocol/library channel APIs. MeshCore reads explicit bounded capacity, every channel and contacts; Meshtastic requires completed local channels. Hash inputs include index/name/PSK digest and role, without returning raw keys. Missing/incomplete reads block verification. Tests mutate PSK/remove channels and check no raw secret appears. Probe budgets increased to 300 seconds for bounded 64-channel reads. Old baseline migration is explicit, not silently overwritten.
+
+Executed: `python -m pytest -q` — 50 passed in 0.56s; `git diff --check` passed. No device operations.

@@ -6,8 +6,8 @@ import time
 PHASES = {"inspect", "verify_backup", "snapshot", "probe_before", "write", "readback", "reset",
           "probe_after_1", "probe_after_2"}
 PHASE_TIMEOUTS = {"inspect": 180, "verify_backup": 120, "snapshot": 1800,
-                  "probe_before": 90, "write": 90, "readback": 90, "reset": 30,
-                  "probe_after_1": 90, "probe_after_2": 90}
+                  "probe_before": 300, "write": 90, "readback": 90, "reset": 30,
+                  "probe_after_1": 300, "probe_after_2": 300}
 LAST_PHASE = None
 SINK = None
 

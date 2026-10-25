@@ -256,7 +256,8 @@ def test_meshtastic_runtime_requires_public_key_and_closes_transport(monkeypatch
     interface = SimpleNamespace(getMyNodeInfo=lambda: {"user": user},
                 myInfo=SimpleNamespace(my_node_num=0x12345678),
                 metadata=SimpleNamespace(firmware_version="test-build"),
-                localNode=SimpleNamespace(localConfig=SimpleNamespace(lora=config_pb2.Config.LoRaConfig())),
+                localNode=SimpleNamespace(localConfig=SimpleNamespace(lora=config_pb2.Config.LoRaConfig()),
+                     channels=[SimpleNamespace(index=0, role=1, settings=SimpleNamespace(name="test", psk=b"secret"))]),
                 close=lambda: closed.append(True))
     monkeypatch.setattr(meshtastic.serial_interface, "SerialInterface", lambda **_: interface)
     result = probe_meshtastic("fake")
@@ -280,7 +281,15 @@ def test_meshcore_runtime_requires_self_info_and_closes_transport(monkeypatch):
     async def disconnect():
         closed.append(True)
     async def connect(*_, **__):
-        return SimpleNamespace(commands=SimpleNamespace(send_appstart=appstart), disconnect=disconnect)
+        async def query():
+            return SimpleNamespace(type=EventType.DEVICE_INFO, payload={"max_channels": 1})
+        async def channel(index):
+            return SimpleNamespace(type=EventType.CHANNEL_INFO, payload={"channel_idx": index,
+                                   "channel_name": "test", "channel_secret": b"x" * 16})
+        async def contacts():
+            return SimpleNamespace(type=EventType.CONTACTS, payload={})
+        return SimpleNamespace(commands=SimpleNamespace(send_appstart=appstart, send_device_query=query,
+                               get_channel=channel, get_contacts=contacts), disconnect=disconnect)
     monkeypatch.setattr(MeshCore, "create_serial", connect)
     result = asyncio.run(probe_meshcore("fake"))
     assert result["network"] == "meshcore"

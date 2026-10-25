@@ -198,6 +198,27 @@ async def probe_meshcore(port):
         if not isinstance(public, str) or len(public) != 64 or not any(bytes.fromhex(public)):
             raise LabError("MeshCore returned no usable public identity")
         stable = {k: info.get(k) for k in ("name", "radio_freq", "radio_bw", "radio_sf", "radio_cr", "tx_power")}
+        capabilities = await mc.commands.send_device_query()
+        if capabilities is None or capabilities.type != EventType.DEVICE_INFO:
+            raise LabError("MeshCore channel capacity is unavailable")
+        count = capabilities.payload.get("max_channels")
+        if type(count) is not int or not 0 < count <= 64:
+            raise LabError("MeshCore channel capacity is unsupported")
+        channels = []
+        for index in range(count):
+            channel = await mc.commands.get_channel(index)
+            if channel is None or channel.type != EventType.CHANNEL_INFO or channel.payload.get("channel_idx") != index:
+                raise LabError("Incomplete MeshCore channel read")
+            secret = channel.payload.get("channel_secret")
+            if not isinstance(secret, bytes) or len(secret) != 16:
+                raise LabError("MeshCore channel key cannot be fingerprinted")
+            channels.append({"index": index, "name": channel.payload.get("channel_name", ""), "psk_sha256": digest(secret)})
+        contacts = await mc.commands.get_contacts()
+        if contacts is None or contacts.type != EventType.CONTACTS or not isinstance(contacts.payload, dict):
+            raise LabError("Incomplete MeshCore contact read")
+        peers = sorted([{k: peer.get(k) for k in ("public_key", "adv_name", "type", "flags")}
+                        for peer in contacts.payload.values()], key=lambda peer: str(peer["public_key"]))
+        stable.update(channels=channels, contacts=peers)
         return {"network": "meshcore", "identity_sha256": digest(bytes.fromhex(public)),
                 "settings_sha256": digest(json.dumps(stable, sort_keys=True).encode()),
                 "name": info.get("name", ""), "evidence": "USB SELF_INFO"}
@@ -228,6 +249,11 @@ def probe_meshtastic(port):
         identity = {"node": number, "id": user["id"], "publicKey": public}
         stable = {"longName": user.get("longName"), "shortName": user.get("shortName"),
                   "lora": MessageToDict(interface.localNode.localConfig.lora)}
+        channels = interface.localNode.channels
+        if channels is None or not channels:
+            raise LabError("Meshtastic channel configuration is incomplete")
+        stable["channels"] = [{"index": c.index, "name": c.settings.name, "role": c.role,
+                               "psk_sha256": digest(bytes(c.settings.psk))} for c in channels]
         return {"network": "meshtastic", "identity_sha256": digest(json.dumps(identity, sort_keys=True).encode()),
                 "settings_sha256": digest(json.dumps(stable, sort_keys=True).encode()),
                 "name": user.get("longName", ""), "version": interface.metadata.firmware_version,

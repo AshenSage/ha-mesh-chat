@@ -85,7 +85,7 @@ Start with **3 complete rounds**. Once these pass, run **20 complete rounds** on
 
 Use [the full acceptance plan](../docs/dualboot-proof.md), including restart, power-loss and dwell tests. Download the JSON report and attach the host/build details. These reports contain names and device identifiers but no private keys, channel keys or raw protocol dumps.
 
-Automated profile comparison currently covers public identity plus name and selected radio configuration, **not every channel/contact/key or private-key export**. Check the remaining profile data separately before marking full persistence passed. No geographic radio coverage, chat delivery or message-buffer claim follows from a dualboot pass.
+Automated profile comparison now covers public identity, names, selected radio configuration and channel index/name/PSK-hash (plus role on Meshtastic); MeshCore also includes contact membership/name/type/flags. Channel reads must be complete. Raw keys are never returned. Existing baselines must be archived and deliberately re-established after this fingerprint change. This still does not prove private-key export or every firmware field. Check the remaining profile data separately before marking full persistence passed. No geographic radio coverage, chat delivery or message-buffer claim follows from a dualboot pass.
 
 ## Recovery and troubleshooting
 
