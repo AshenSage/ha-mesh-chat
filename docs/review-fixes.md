@@ -165,3 +165,9 @@ Executed: `python -m pytest -q` — 96 passed in 1.43s; `git diff --check` passe
 Rechecked require_same_device, selector hash collection and parent progress handling. Removed only selector_nvs_md5 from hard binding; a fixed allowlisted warning code is emitted and retained in the report. MAC/layout/apps/bootloader remain hard gates. Added A5 read-only MD5 sequence across repeated normal boots of both firmwares and selector entry/exit, NOT RUN. Test exercises a successful fake switch with warning and persisted parent warning. Exact commands: ../mesh-lab-venv/bin/python -m pytest -q; git diff --check. No actual normal boots, NVS reads, USB, flash/reset/reboot operations.
 
 Executed: `python -m pytest -q` — 96 passed in 2.04s; `git diff --check` passed. No device operations.
+
+## R2-P3-1 — rotate sanitized debug logs with bounded private archives
+
+Rechecked diagnostics.log_exception and R2-3 snapshot retention. Added 1-MiB debug rotation with three archives and O_NOFOLLOW append; full snapshots remain acknowledgement-only retention with protected original/latest two. Test writes eight fake failures with a tiny threshold and verifies bounded count, private modes and no exception payload. Exact commands: ../mesh-lab-venv/bin/python -m pytest -q; git diff --check. No device operations.
+
+Executed: `python -m pytest -q` — 97 passed in 1.32s; `git diff --check` passed. No device operations.

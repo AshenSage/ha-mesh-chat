@@ -510,3 +510,18 @@ def test_r2_7_sigterm_during_detect_before_ownership_has_no_fake_reset_claim(mon
         assert radio.esp is None and not worker.CLEANUP_ACTIVE
     finally:
         worker.install_signal_handlers()
+
+
+
+def test_r2_p3_debug_rotation_is_bounded_private_and_sanitized(tmp_path, monkeypatch):
+    from lab import diagnostics
+    monkeypatch.setattr(diagnostics, "DEBUG_MAX_BYTES", 1)
+    monkeypatch.setattr(diagnostics, "DEBUG_ARCHIVES", 2)
+    for _ in range(8):
+        diagnostics.log_exception(tmp_path, RuntimeError("do not record this private key"))
+    files = sorted(tmp_path.glob("debug.jsonl*"))
+    assert len(files) == 3
+    for path in files:
+        assert path.stat().st_mode & 0o777 == 0o600
+        assert "private key" not in path.read_text()
+        assert json.loads(path.read_text())["exception_type"] == "RuntimeError"

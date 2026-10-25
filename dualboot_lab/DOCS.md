@@ -144,3 +144,6 @@ Stop budget: Supervisor `timeout: 30` is explicitly configured; the documented d
 
 
 Selector NVS MD5 is observed and compared but a change currently emits `selector_nvs_changed_unvalidated`, retained in the report, rather than blocking normal boots. Whether nvs_sel is stable across both runtimes/selector is an unproved A5 assumption; record its read-only before/after MD5 over multiple normal boots. MAC/layout/app/bootloader mismatches still stop the run.
+
+
+Debug retention: sanitized `debug.jsonl` rotates at 1 MiB, keeping at most three archives plus the current file, all private. Snapshot retention is separately protected and requires the explicit R2-3 acknowledgement before old flash copies are removed.

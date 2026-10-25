@@ -8,6 +8,8 @@ PHASES = {"inspect", "verify_backup", "snapshot", "probe_before", "write", "read
 PHASE_TIMEOUTS = {"inspect": 180, "verify_backup": 120, "snapshot": 1800,
                   "probe_before": 300, "write": 90, "readback": 90, "reset": 30,
                   "probe_after_1": 300, "probe_after_2": 300}
+DEBUG_MAX_BYTES = 1024 * 1024
+DEBUG_ARCHIVES = 3
 LAST_PHASE = None
 SINK = None
 
@@ -42,7 +44,15 @@ def log_exception(data, exc):
             break
     path = data / "debug.jsonl"
     data.mkdir(parents=True, exist_ok=True, mode=0o700)
-    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+    if path.exists() and path.stat().st_size >= DEBUG_MAX_BYTES:
+        for number in range(DEBUG_ARCHIVES, 0, -1):
+            old = data / ("debug.jsonl." + str(number))
+            if number == DEBUG_ARCHIVES:
+                old.unlink(missing_ok=True)
+            elif old.exists():
+                old.replace(data / ("debug.jsonl." + str(number + 1)))
+        path.replace(data / "debug.jsonl.1")
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW, 0o600)
     with os.fdopen(descriptor, "a") as stream:
         stream.write(json.dumps({"time": time.time(), "exception_type": type(exc).__name__,
                     "phase": getattr(exc, "lab_phase", LAST_PHASE), "esptool_message": message}) + "\n")
