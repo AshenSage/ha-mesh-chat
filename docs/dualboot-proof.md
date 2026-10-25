@@ -12,6 +12,8 @@ Use the [lab instructions](../dualboot_lab/DOCS.md). The experimental transport 
 
 ## Sequence
 
+**A5 gate:** first perform and record the [manual OTA hypothesis check](manual-otadata-proof.md) without the lab. It remains NOT RUN. Do not proceed to lab-driven switching or unattended rounds on the strength of software tests.
+
 1. Identify the board and host, establish USB/ROM access, preserve its original flash and prepare the compatible isolated layout and USB app builds.
 2. Independently confirm both runtimes and record public identity, name, radio settings, channels and peer data. Start with test identities, not important production profiles.
 3. Enrol/back up the prepared board, capture the active protocol baseline, and execute one switch each way. First observation of a profile is baseline establishment, not proof of retention.
