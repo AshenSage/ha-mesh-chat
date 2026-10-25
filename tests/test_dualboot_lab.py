@@ -127,6 +127,7 @@ class Stub:
 def test_hardware_writer_only_modifies_inactive_ota_sector(tmp_path):
     radio = Radio("fake")
     radio.mac = "00:11"
+    radio.psram_cap = 2
     radio.esp = Stub()
     info = {"mac": radio.mac, "flash_size": 0x1000000, "table_sha256": "abc", "app_md5": {}}
     radio.inspect = lambda: info
@@ -139,6 +140,7 @@ def test_hardware_writer_only_modifies_inactive_ota_sector(tmp_path):
 def test_storage_failure_prevents_write(tmp_path, monkeypatch):
     radio = Radio("fake")
     radio.mac = "00:11"
+    radio.psram_cap = 2
     radio.esp = Stub()
     info = {"mac": "00:11"}
     radio.inspect = lambda: info

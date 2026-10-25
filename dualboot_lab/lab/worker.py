@@ -67,6 +67,8 @@ class Radio:
     def __init__(self, port):
         self.port = port
         self.esp = None
+        self.psram_cap = None
+        self.chip_features = []
 
     def __enter__(self):
         import esptool
@@ -77,6 +79,10 @@ class Radio:
             if self.esp.get_secure_boot_enabled() or self.esp.get_flash_encryption_enabled():
                 raise LabError("Secure boot/encrypted flash is unsupported")
             self.mac = ":".join(f"{x:02x}" for x in self.esp.read_mac())
+            # Observe before loading the stub. Read-only diagnostics remain
+            # available for unknown variants; writes require the documented cap.
+            self.psram_cap = self.esp.get_psram_cap()
+            self.chip_features = self.esp.get_chip_features()
             self.esp = self.esp.run_stub()
             flash_id = self.esp.flash_id()
             self.size = 1 << ((flash_id >> 16) & 0xFF)
@@ -96,7 +102,9 @@ class Radio:
 
     def inspect(self, strict=True):
         table = self.esp.read_flash(TABLE_OFFSET, SECTOR)
-        result = {"mac": self.mac, "flash_size": self.size, "table_sha256": digest(table)}
+        result = {"mac": self.mac, "flash_size": self.size, "table_sha256": digest(table),
+                  "psram_cap": self.psram_cap, "chip_features": self.chip_features,
+                  "r2_candidate": self.psram_cap == 2, "variant_hardware_validated": False}
         try:
             validate_table(table)
         except LabError as exc:
@@ -110,6 +118,8 @@ class Radio:
         return result
 
     def select(self, network, registry, data):
+        if self.psram_cap != 2:
+            raise LabError("Boot-selection write requires observed embedded PSRAM cap 2 (2MB)")
         current = self.inspect()
         require_same_device(current, registry)
         verify_slot_projects(self.esp.read_flash)

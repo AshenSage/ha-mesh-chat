@@ -59,6 +59,7 @@ def test_a2_swapped_or_generic_slot_projects_prevent_write(tmp_path, swapped, ge
     from test_dualboot_lab import Stub
     radio = worker.Radio("fake")
     radio.mac = "00:11"
+    radio.psram_cap = 2
     stub = Stub()
     original_read = stub.read_flash
     def read(offset, size):
@@ -75,3 +76,22 @@ def test_a2_swapped_or_generic_slot_projects_prevent_write(tmp_path, swapped, ge
     with pytest.raises(LabError, match="project does not identify"):
         radio.select("meshtastic", {"mac": radio.mac}, tmp_path)
     assert stub.writes == []
+
+
+@pytest.mark.parametrize("cap", [0, 1, 2, 3])
+def test_a3_read_only_cap_observation_and_write_gate(cap, tmp_path, monkeypatch):
+    import esptool
+    closed = []
+    chip = SimpleNamespace(CHIP_NAME="ESP32-S3", get_secure_boot_enabled=lambda: False,
+            get_flash_encryption_enabled=lambda: False, read_mac=lambda: (0, 1, 2, 3, 4, 5),
+            get_psram_cap=lambda: cap, get_chip_features=lambda: [f"test cap {cap}"],
+            flash_id=lambda: 0x180000, hard_reset=lambda: closed.append("reset"),
+            _port=SimpleNamespace(close=lambda: closed.append("close")))
+    chip.run_stub = lambda: chip
+    monkeypatch.setattr(esptool, "detect_chip", lambda *_, **__: chip)
+    with worker.Radio("fake") as radio:
+        assert radio.psram_cap == cap
+        if cap != 2:
+            with pytest.raises(LabError, match="PSRAM cap 2"):
+                radio.select("meshcore", {}, tmp_path)
+    assert closed == ["reset", "close"]

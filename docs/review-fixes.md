@@ -13,3 +13,9 @@ Executed: `python -m pytest -q` — 18 passed; `git diff --check` passed. New te
 Rechecked current worker.py select/inspect (97–136) and ESP app descriptor bytes in the cached binary files, without devices. verify_slot_projects reads both descriptors before the OTA write. Fake swapped slots and generic descriptors are rejected. Both existing real app files identify as arduino-lib-builder: they remain INCOMPATIBLE with this guard until explicit project names are supplied; no runtime/hardware claim.
 
 Executed: `python -m pytest -q` — 20 passed in 0.36s; `git diff --check` passed. No device operations.
+
+## A3 — observe embedded PSRAM capacity and refuse non-R2 candidate writes
+
+Rechecked Radio.__enter__/select lines 71–115 and inspected esptool 4.11.0 ESP32S3ROM get_psram_cap/get_chip_features source. Read-only inspection records cap/features; select requires cap 2. Fake ROM contexts cover caps 0/1/2/3 and cleanup. Real V4-R2 cap correspondence is NOT RUN.
+
+Executed: `python -m pytest -q` — 24 passed in 0.41s; `git diff --check` passed. No device operations.

@@ -19,6 +19,8 @@ board_confirmed: true
 allow_boot_selection_write: false
 ```
 
+The first read-only inspection reports esptool `get_psram_cap()` and chip features. Cap 2 means embedded PSRAM 2 MB in the pinned API; all other/unknown values block writes. Whether the actual Heltec V4-R2 reports cap 2 is NOT RUN and must be checked before relying on the candidate label. A checkbox is not chip evidence.
+
 Run **USB und Layout prüfen**. This enters ROM/stub mode, reads the chip, JEDEC flash size, partition table and boot metadata, then resets the radio. It interrupts reception even though it does not write flash. A fresh/single-firmware board is expected to report an unsupported layout. No installation or erase happens automatically.
 
 **Current A2 blocker:** the previously compiled MeshCore app and reference Meshtastic app both report `arduino-lib-builder` in their ESP application descriptor. The strict slot guard rejects these generic names. A build with an explicit protocol project name is required for each slot before lab writes; old successful compilation is not evidence of correct slot identity.
