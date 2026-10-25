@@ -98,6 +98,13 @@ class Stub:
         self.writes = []
 
     def read_flash(self, offset, size):
+        if size == 288:
+            header = bytearray(288)
+            header[0] = 0xE9
+            header[32:36] = b"\x32\x54\xcd\xab"
+            name = b"meshcore" if offset == 0x220000 else b"meshtastic"
+            header[80:80 + len(name)] = name
+            return bytes(header)
         assert (offset, size) == (0x1C000, 2 * SECTOR)
         return self.raw
 

@@ -36,6 +36,27 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def app_project(header):
+    """ESP image header (24), first segment header (8), esp_app_desc_t."""
+    if len(header) < 288 or header[0] != 0xE9 or header[32:36] != b"\x32\x54\xcd\xab":
+        raise LabError("Missing ESP application descriptor")
+    try:
+        return header[80:112].split(b"\0", 1)[0].decode("ascii").lower()
+    except UnicodeError as exc:
+        raise LabError("Invalid application project name") from exc
+
+
+def verify_slot_projects(read_flash):
+    projects = {}
+    for network, slot in NETWORKS.items():
+        address = next(row[3] for row in EXPECTED if row[0] == f"ota_{slot}")
+        project = app_project(read_flash(address, 288))
+        if project != network and not project.startswith(network + "-"):
+            raise LabError(f"ota_{slot} project does not identify {network}; refuse boot-selection write")
+        projects[network] = project
+    return projects
+
+
 def validate_table(raw):
     if len(raw) != SECTOR:
         raise LabError("Partition table read is incomplete")

@@ -21,6 +21,8 @@ allow_boot_selection_write: false
 
 Run **USB und Layout prüfen**. This enters ROM/stub mode, reads the chip, JEDEC flash size, partition table and boot metadata, then resets the radio. It interrupts reception even though it does not write flash. A fresh/single-firmware board is expected to report an unsupported layout. No installation or erase happens automatically.
 
+**Current A2 blocker:** the previously compiled MeshCore app and reference Meshtastic app both report `arduino-lib-builder` in their ESP application descriptor. The strict slot guard rejects these generic names. A build with an explicit protocol project name is required for each slot before lab writes; old successful compilation is not evidence of correct slot identity.
+
 ## 2. Prepare firmware once, before the lab switching test
 
 **This prerequisite is not yet a validated turnkey bundle.** The app currently switches an explicitly prepared installation; it does not flash new boards. Stop at preflight if the build/provisioning checks below cannot be completed. Do not download arbitrary latest images.

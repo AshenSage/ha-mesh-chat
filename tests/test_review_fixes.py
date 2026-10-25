@@ -52,3 +52,26 @@ def test_a1_cycle_stops_before_switch_when_resnapshot_fails(tmp_path):
         assert run["status"] == "failed"
         assert calls == ["resnapshot"]
     asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("swapped,generic", [(True, False), (False, True)])
+def test_a2_swapped_or_generic_slot_projects_prevent_write(tmp_path, swapped, generic):
+    from test_dualboot_lab import Stub
+    radio = worker.Radio("fake")
+    radio.mac = "00:11"
+    stub = Stub()
+    original_read = stub.read_flash
+    def read(offset, size):
+        if size == 288:
+            if generic:
+                raw = bytearray(original_read(offset, size))
+                raw[80:112] = b"arduino-lib-builder".ljust(32, b"\0")
+                return bytes(raw)
+            offset = 0x680000 if offset == 0x220000 else 0x220000
+        return original_read(offset, size)
+    stub.read_flash = read
+    radio.esp = stub
+    radio.inspect = lambda: {"mac": radio.mac}
+    with pytest.raises(LabError, match="project does not identify"):
+        radio.select("meshtastic", {"mac": radio.mac}, tmp_path)
+    assert stub.writes == []

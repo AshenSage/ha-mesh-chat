@@ -18,7 +18,7 @@ import uuid
 import zlib
 
 from .layout import (EXPECTED, FLASH_SIZE, NETWORKS, SECTOR, TABLE_OFFSET,
-                     LabError, digest, plan_selection, selected_slot, validate_table)
+                     LabError, digest, plan_selection, selected_slot, validate_table, verify_slot_projects)
 
 
 def save_json(path, value):
@@ -112,6 +112,7 @@ class Radio:
     def select(self, network, registry, data):
         current = self.inspect()
         require_same_device(current, registry)
+        verify_slot_projects(self.esp.read_flash)
         previous = self.esp.read_flash(0x1C000, 2 * SECTOR)
         plan = plan_selection(previous, network)
         if plan is None:
