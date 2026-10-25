@@ -15,7 +15,11 @@ from test_dualboot_lab import attested, Stub
 
 
 def profile(network):
-    return {"network": network, "identity_sha256": network + "-key", "settings_sha256": network + "-settings", "evidence": "fake protocol"}
+    value = {"network": network, "identity_sha256": network + "-key",
+             "settings_sha256": network + "-settings", "evidence": "fake protocol"}
+    if network == "meshcore":
+        value.update(radio_sha256="radio", channels_sha256="channels", contacts_count=1, contacts_set=["peer"])
+    return value
 
 
 @pytest.fixture
@@ -216,4 +220,31 @@ def test_r2_6_verification_retry_never_writes_and_closes_only_matching_written_j
         with pytest.raises(LabError):
             s.run("meshcore", "verify_selection")
         assert json.loads((s.data / "last-selection.json").read_text()) == state
+    assert not s.calls
+
+
+@pytest.mark.parametrize("change,component", [("add", None), ("remove", "contacts_set"), ("key", "channels_sha256"), ("old", "Baseline neu erfassen")])
+def test_r2_2_meshcore_components_allow_contact_growth_only(change, component):
+    baseline = profile("meshcore")
+    observed = dict(baseline)
+    if change == "add":
+        observed.update(contacts_set=["peer", "new"], contacts_count=2)
+    elif change == "remove":
+        observed.update(contacts_set=[], contacts_count=0)
+    elif change == "key":
+        observed["channels_sha256"] = "changed key hash"
+    else:
+        baseline.pop("radio_sha256")
+    if component:
+        with pytest.raises(LabError, match=component):
+            worker.compare_profile(observed, baseline)
+    else:
+        worker.compare_profile(observed, baseline)
+
+
+def test_r2_2_contact_loss_before_switch_prevents_select(setup_run):
+    s = setup_run
+    s.observations.append({**profile("meshcore"), "contacts_set": [], "contacts_count": 0})
+    with pytest.raises(LabError, match="contacts_set"):
+        s.run()
     assert not s.calls

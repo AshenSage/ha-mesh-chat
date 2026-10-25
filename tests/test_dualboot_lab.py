@@ -91,7 +91,7 @@ def test_never_accept_changed_board_build_or_profile():
     for key in record:
         with pytest.raises(LabError, match="changed"):
             require_same_device({**record, key: "other"}, record)
-    baseline = {"network": "meshcore", "identity_sha256": "key", "settings_sha256": "radio"}
+    baseline = {"network": "meshtastic", "identity_sha256": "key", "settings_sha256": "radio"}
     compare_profile(baseline, baseline)
     for key in baseline:
         with pytest.raises(LabError, match="Profile changed"):

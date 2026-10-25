@@ -129,3 +129,9 @@ Executed: `python -m pytest -q` — 74 passed in 0.96s; `git diff --check` passe
 Rechecked current run and journal transition after R2-5. Added verify_selection for the already selected target: both baseline probes must succeed; then only a matching written journal becomes verified. Pending, other-target and failed probes leave journal/pre-state unchanged. This explicitly resolves the tension with R2-5: switch remains blocked; retry is observation-only and never calls select. UI/API/CLI expose it. Executed ../mesh-lab-venv/bin/python -m pytest -q and git diff --check; all transport/protocol fixtures fake, no device operations.
 
 Executed: `python -m pytest -q` — 78 passed in 0.98s; `git diff --check` passed. No device operations.
+
+## R2-2 — separate MeshCore profile components and permit contact growth
+
+Rechecked current MeshCore probe/compare_profile and related tests. Radio and channel hashes are separate; contacts_count and a set of hashed stable contact records replace the monolithic settings hash. Baseline contact membership is a subset requirement; growth is allowed, losses/channel-key drift fail with the component name. Missing old component fields demand Baseline neu erfassen. Tests cover growth, loss, key drift, old schema and run-level no-select on contact loss. Exact commands: ../mesh-lab-venv/bin/python -m pytest -q; git diff --check. No device, flash, reset or reboot operations.
+
+Executed: `python -m pytest -q` — 83 passed in 6.70s; `git diff --check` passed. No device operations.

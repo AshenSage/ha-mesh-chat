@@ -237,9 +237,13 @@ async def probe_meshcore(port):
             raise LabError("Incomplete MeshCore contact read")
         peers = sorted([{k: peer.get(k) for k in ("public_key", "adv_name", "type", "flags")}
                         for peer in contacts.payload.values()], key=lambda peer: str(peer["public_key"]))
-        stable.update(channels=channels, contacts=peers)
+        contact_set = sorted({digest(json.dumps(peer, sort_keys=True).encode()) for peer in peers})
+        if len(contact_set) != len(peers):
+            raise LabError("Incomplete MeshCore contacts_set (duplicates)")
         return {"network": "meshcore", "identity_sha256": digest(bytes.fromhex(public)),
-                "settings_sha256": digest(json.dumps(stable, sort_keys=True).encode()),
+                "radio_sha256": digest(json.dumps(stable, sort_keys=True).encode()),
+                "channels_sha256": digest(json.dumps(channels, sort_keys=True).encode()),
+                "contacts_count": len(contact_set), "contacts_set": contact_set,
                 "name": info.get("name", ""), "evidence": "USB SELF_INFO"}
     finally:
         await mc.disconnect()
@@ -289,7 +293,23 @@ def probe(network, configured, registry):
 
 
 def compare_profile(observed, baseline):
-    for key in ("network", "identity_sha256", "settings_sha256"):
+    keys = ["network", "identity_sha256"]
+    if baseline.get("network") == "meshcore":
+        required = ("radio_sha256", "channels_sha256", "contacts_count", "contacts_set")
+        for record in (baseline, observed):
+            if any(key not in record for key in required):
+                raise LabError("Baseline neu erfassen: MeshCore component fingerprints missing")
+            members = record["contacts_set"]
+            if (not isinstance(members, list) or any(not isinstance(x, str) for x in members)
+                    or type(record["contacts_count"]) is not int
+                    or record["contacts_count"] != len(set(members)) or len(members) != len(set(members))):
+                raise LabError("Profile changed (contacts_set): invalid component")
+        keys += ["radio_sha256", "channels_sha256"]
+        if not set(baseline["contacts_set"]).issubset(observed["contacts_set"]):
+            raise LabError("Profile changed (contacts_set): baseline contact missing")
+    else:
+        keys += ["settings_sha256"]
+    for key in keys:
         if observed.get(key) != baseline.get(key):
             raise LabError(f"Profile changed after reboot/switch ({key}); stop test")
 

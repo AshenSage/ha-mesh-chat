@@ -311,10 +311,12 @@ def test_b7_meshcore_contacts_and_channel_keys_are_checked(monkeypatch):
     assert "private-key-1234" not in json.dumps(first)
     state["contacts"] = {}
     second = asyncio.run(worker.probe_meshcore("fake"))
-    assert first["settings_sha256"] != second["settings_sha256"]
+    with pytest.raises(LabError, match="contacts_set"):
+        worker.compare_profile(second, first)
     state["secret"] = b"different-secret"
     third = asyncio.run(worker.probe_meshcore("fake"))
-    assert second["settings_sha256"] != third["settings_sha256"]
+    with pytest.raises(LabError, match="channels_sha256"):
+        worker.compare_profile(third, second)
 
 
 def test_c3_fixed_crc_reference_zero_refusal_and_no_rollback_state():

@@ -126,3 +126,6 @@ A corrupt report is quarantined as `report-corrupt-*.json`; startup begins a new
 
 
 After a failed post-write verification, `verify_selection --network TARGET` retries only observation of the already selected target: it checks backup/device/attestations, compares two live protocol probes with its baseline, and marks a matching `written` journal `verified`. It never calls Radio.select. A pending or different-target journal remains unchanged and requires investigation. Ordinary switch/cycle remains blocked until verification or explicit acknowledgement succeeds.
+
+
+MeshCore fingerprint schema: radio and channels have separate hashes. Contacts are a set of per-contact hashes over public key/name/type/flags plus a count; automatic additions are accepted, but every baseline contact must remain unchanged/present. Error messages name only the component. Raw contact records and PSKs are not logged. Earlier combined-hash baselines fail with `Baseline neu erfassen`; archive/re-enrol deliberately and capture both manual baselines, never silently migrate them.
