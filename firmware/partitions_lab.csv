@@ -1,0 +1,11 @@
+# Isolated 16 MB layout. Must match dualboot_lab/lab/layout.py exactly.
+# Name, Type, SubType, Offset, Size
+nvs,data,nvs,0x9000,0x10000
+nvs_sel,data,nvs,0x19000,0x3000
+otadata,data,ota,0x1C000,0x2000
+factory,app,factory,0x20000,0x200000
+ota_0,app,ota_0,0x220000,0x460000
+ota_1,app,ota_1,0x680000,0x570000
+spiffs,data,spiffs,0xBF0000,0x200000
+mc_spiffs,data,spiffs,0xDF0000,0x200000
+coredump,data,coredump,0xFF0000,0x10000

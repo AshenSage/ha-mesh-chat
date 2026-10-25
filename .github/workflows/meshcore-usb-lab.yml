@@ -1,0 +1,21 @@
+name: Build experimental MeshCore USB app
+on: workflow_dispatch
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install platformio==6.1.18
+      - uses: actions/checkout@v4
+        with:
+          repository: meshcore-dev/MeshCore
+          ref: 81dbae592ffad40b4212bc0b37e82b38da08f4bc
+          path: firmware-work/MeshCore
+      - run: python tools/prepare_meshcore_usb.py firmware-work/MeshCore --build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: meshcore-usb-lab-experimental
+          path: firmware-work/output/
