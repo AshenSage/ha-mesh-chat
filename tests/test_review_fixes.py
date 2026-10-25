@@ -328,3 +328,36 @@ def test_c3_fixed_crc_reference_zero_refusal_and_no_rollback_state():
     sector, content = plan_selection(bytes(golden), "meshtastic")
     assert struct.unpack_from("<I", content, 24)[0] == 0xFFFFFFFF
     assert len(boot_entries(apply(bytes(golden), (sector, content)))) == 2
+
+
+@pytest.mark.parametrize("peer,expected", [("172.30.32.2", 200), ("127.0.0.1", 403)])
+def test_c4_ingress_proxy_positive_and_forwarded_header_cannot_spoof_peer(peer, expected, monkeypatch):
+    from aiohttp.test_utils import make_mocked_request
+    from aiohttp import web
+    import lab.server as server
+    monkeypatch.setattr(server, "LOCAL", False)
+    transport = SimpleNamespace(get_extra_info=lambda name, default=None: (peer, 1234) if name == "peername" else default)
+    request = make_mocked_request("GET", "/", headers={"X-Forwarded-For": "172.30.32.2"}, transport=transport)
+    async def handler(_):
+        return web.Response(text="allowed")
+    async def scenario():
+        if expected == 200:
+            assert (await server.ingress_only(request, handler)).status == 200
+        else:
+            with pytest.raises(web.HTTPForbidden):
+                await server.ingress_only(request, handler)
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("usb", [False, True])
+def test_c4_pinned_s3_reset_derives_usb_mode_internally(usb, monkeypatch):
+    from esptool.targets.esp32s3 import ESP32S3ROM
+    from esptool.loader import ESPLoader
+    observed = []
+    monkeypatch.setattr(ESPLoader, "hard_reset", lambda self, uses_usb=False: observed.append(uses_usb))
+    esp = object.__new__(ESP32S3ROM)
+    esp.write_reg = lambda *args: None
+    esp.uses_usb_otg = lambda: usb
+    esp.read_reg = lambda addr: esp.GPIO_STRAP_SPI_BOOT_MASK if addr == esp.GPIO_STRAP_REG else 0
+    esp.hard_reset()  # no constructor or serial transport
+    assert observed == [usb]

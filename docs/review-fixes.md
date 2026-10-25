@@ -91,3 +91,9 @@ Executed: `python -m pytest -q` — 57 passed in 0.68s; `git diff --check` passe
 Rechecked current layout.py boot_entries/plan_selection. CRC-valid seq 0 now fails explicitly. New selection records write UNDEFINED 0xFFFFFFFF instead of claiming VALID=2; accepted read states and rollback refusal remain conservative. Added independent literal seq-1 CRC 0x4743989A, zero and emitted-state tests. Documented ESP-IDF no-rollback policy and required actual otatool/bootloader comparison in A5, still NOT RUN.
 
 Executed: `python -m pytest -q` — 58 passed in 0.80s; `git diff --check` passed. No device operations.
+
+## C4 — test trusted Ingress peer and document unproved HAOS access/reset assumptions
+
+Rechecked middleware, config usb/uart/udev and hard_reset call. Added positive trusted-peer test and rejection of forwarded-header spoofing. Inspected/called pinned S3 reset control flow on an uninitialised fake object: 4.11 derives USB mode internally; adding uses_usb to its override would be invalid. Actual non-admin direct-URL rejection, native USB reset and re-enumerated /dev visibility are new NOT RUN acceptance rows; docs no longer assert backend admin protection based on panel_admin alone.
+
+Executed: `python -m pytest -q` — 62 passed in 1.22s; `git diff --check` passed. No device operations.

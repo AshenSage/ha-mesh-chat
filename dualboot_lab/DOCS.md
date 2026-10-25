@@ -9,7 +9,7 @@ This is an experimental bench tool. The first goal is reproducible **USB switchi
 3. On Proxmox, pass through the Heltec USB device to the HAOS VM. Check that passthrough also survives bootloader/runtime USB re-enumeration; a physical USB-port mapping may be necessary. On Raspberry Pi, use direct USB.
 4. Select the exact serial path in HA Settings → System → Hardware → All hardware. Prefer `/dev/serial/by-id/...`; the app also uses a uniquely matching physical USB location after re-enumeration. It never selects an arbitrary available port.
 5. Configure `device` with that path. Leave `allow_boot_selection_write: false`. Confirm `board_confirmed: true` only after inspecting the physical model/variant, flash and radio band (Heltec V4 **ESP32-S3R2 / 16 MB / 868 MHz**, not R8).
-6. Stop other integrations, serial terminals and apps using this port. Start the lab and open its web UI in HA. It is admin-only Ingress; no public/listening host port or HA token is required.
+6. Stop other integrations, serial terminals and apps using this port. Start the lab and open its web UI in HA. The sidebar is configured admin-only; actual direct-Ingress non-admin rejection still needs the explicit HAOS test. Do not treat panel_admin as proven backend authorisation. No public/listening host port or HA token is required.
 
 Example app options (replace the device path):
 
@@ -106,3 +106,7 @@ python -m pytest -q
 ```
 
 For local UI development set `LAB_LOCAL=1`, `LAB_DATA` to a private test directory containing `options.json`, and run `PYTHONPATH=dualboot_lab python -m lab.server`. This binds to loopback only. Never expose the local development server to a network.
+
+### Pinned reset API (C4)
+
+ESP32S3ROM.hard_reset in esptool 4.11 takes no uses_usb argument; its override calls uses_usb_otg internally and delegates the result (or a watchdog path) to the base loader. Fake-transport control-flow tests cover USB/non-USB delegation. Actual native USB reset and container device-node visibility remain NOT RUN.
