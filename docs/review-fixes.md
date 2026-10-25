@@ -171,3 +171,9 @@ Executed: `python -m pytest -q` — 96 passed in 2.04s; `git diff --check` passe
 Rechecked diagnostics.log_exception and R2-3 snapshot retention. Added 1-MiB debug rotation with three archives and O_NOFOLLOW append; full snapshots remain acknowledgement-only retention with protected original/latest two. Test writes eight fake failures with a tiny threshold and verifies bounded count, private modes and no exception payload. Exact commands: ../mesh-lab-venv/bin/python -m pytest -q; git diff --check. No device operations.
 
 Executed: `python -m pytest -q` — 97 passed in 1.32s; `git diff --check` passed. No device operations.
+
+## R2-P3-2 — pin Python container base to verified multiarchitecture index digest
+
+Rechecked Dockerfile FROM. Queried authenticated public Docker registry manifest for python:3.12-slim-bookworm, verified response bytes SHA-256 equals Docker-Content-Digest, and checked linux amd64 and arm64 entries. Pinned immutable index sha256:6a0e06f5ba0b373d051aabd3fffb9b873f27f9a2a3a14bcbe37dee6f0e3bbc70. Static regression test rejects a tag-only FROM. Executed registry-only urllib request, ../mesh-lab-venv/bin/python -m pytest -q and git diff --check. No docker/container build yet and no device operations.
+
+Executed: `python -m pytest -q` — 98 passed in 2.41s; `git diff --check` passed. No device operations.

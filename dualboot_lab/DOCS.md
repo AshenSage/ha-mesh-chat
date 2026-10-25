@@ -147,3 +147,6 @@ Selector NVS MD5 is observed and compared but a change currently emits `selector
 
 
 Debug retention: sanitized `debug.jsonl` rotates at 1 MiB, keeping at most three archives plus the current file, all private. Snapshot retention is separately protected and requires the explicit R2-3 acknowledgement before old flash copies are removed.
+
+
+Container base is pinned to the Docker Official Images Python 3.12 slim-bookworm multiarchitecture index `sha256:6a0e06f5ba0b373d051aabd3fffb9b873f27f9a2a3a14bcbe37dee6f0e3bbc70` (registry lookup 2026-10-25; index content hash verified, amd64 and arm64/v8 entries present). Refresh it deliberately with CI, rather than following a moving tag. This is provenance, not a completed container rebuild.

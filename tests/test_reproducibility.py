@@ -49,3 +49,9 @@ def test_r2_8_supervisor_stop_budget_exceeds_http_and_worker_cleanup():
     config = yaml.safe_load((ROOT / "dualboot_lab/config.yaml").read_text())
     assert 10 <= config["timeout"] <= 300
     assert config["timeout"] >= TERMINATION_GRACE + HTTP_SHUTDOWN_TIMEOUT + 10
+
+
+
+def test_r2_p3_container_base_is_an_immutable_multiarch_digest():
+    line = (ROOT / "dualboot_lab/Dockerfile").read_text().splitlines()[0]
+    assert re.fullmatch(r"FROM python:3\.12-slim-bookworm@sha256:[0-9a-f]{64}", line)
