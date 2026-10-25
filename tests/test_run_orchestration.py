@@ -196,3 +196,24 @@ def test_r2_5_acknowledgement_preserves_original_without_device(tmp_path, monkey
     worker.require_closed_journal(tmp_path)
     assert json.loads((tmp_path / result["archive"]).read_text())["otadata_hex"] == "original"
     assert json.loads((tmp_path / "last-selection.json").read_text())["status"] == "acknowledged"
+
+
+@pytest.mark.parametrize("case", ["success", "probe_failure", "wrong_target", "pending"])
+def test_r2_6_verification_retry_never_writes_and_closes_only_matching_written_journal(setup_run, case):
+    s = setup_run
+    state = {"status": "pending" if case == "pending" else "written", "target": "meshcore",
+             "otadata_hex": "preserve"}
+    if case == "wrong_target":
+        state["target"] = "meshtastic"
+    worker.save_json(s.data / "last-selection.json", state)
+    if case == "probe_failure":
+        s.observations.extend([profile("meshcore"), LabError("probe failed")])
+    if case == "success":
+        result = s.run("meshcore", "verify_selection")
+        assert result["status"] == "already_selected_verified" and not result["selection_written"]
+        assert json.loads((s.data / "last-selection.json").read_text())["status"] == "verified"
+    else:
+        with pytest.raises(LabError):
+            s.run("meshcore", "verify_selection")
+        assert json.loads((s.data / "last-selection.json").read_text()) == state
+    assert not s.calls

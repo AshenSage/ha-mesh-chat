@@ -38,7 +38,7 @@
  <button class="primary" data-action="cycle">Rundentest starten</button>
  <p><small>Erstes Ziel: 3 Runden. Anschliessend 20 Runden auf jedem Host sowie Neustart- und Stromunterbruchtests gemäss Testplan.</small></p>
 </section>
-<section><h2>Offenes Journal quittieren</h2><p>Erst den Gerätezustand unabhängig prüfen. Die Quittierung führt keine Wiederherstellung durch.</p><select id="reason"><option value="manual_recovery_checked">Manuelle Wiederherstellung geprüft</option><option value="abandoned_after_inspection">Nach Prüfung verworfen</option></select><button data-action="acknowledge_journal">Journal mit Grund quittieren</button></section>
+<section><h2>Offenes Journal quittieren</h2><p>Erst den Gerätezustand unabhängig prüfen. Die Quittierung führt keine Wiederherstellung durch.</p><select id="reason"><option value="manual_recovery_checked">Manuelle Wiederherstellung geprüft</option><option value="abandoned_after_inspection">Nach Prüfung verworfen</option></select><button data-action="verify_selection">Gewählte Firmware ohne Write erneut prüfen</button><button data-action="acknowledge_journal">Journal mit Grund quittieren</button></section>
 <p id="feedback" role="status" aria-live="polite"></p>
 <section><div class="row"><h2>Testprotokoll</h2><a href="api/report" download>JSON herunterladen</a></div><pre id="report">Noch kein Test.</pre></section>
 <script>

@@ -163,7 +163,7 @@ class Lab:
     def start(self, action, config, network=None, cycles=1, reason=None):
         if self.task and not self.task.done():
             raise LabError("A USB job is already running")
-        if action not in ("inspect", "enrol", "baseline", "switch", "resnapshot", "cycle", "acknowledge_journal"):
+        if action not in ("inspect", "enrol", "baseline", "switch", "resnapshot", "cycle", "acknowledge_journal", "verify_selection"):
             raise LabError("Unknown operation")
         if action in ("switch", "cycle"):
             require_closed_journal(self.data)
@@ -175,7 +175,7 @@ class Lab:
             raise LabError("Confirm Heltec V4 ESP32-S3R2 / 16 MB / 868 MHz in the app configuration")
         if action in ("switch", "cycle") and config.get("allow_boot_selection_write") is not True:
             raise LabError("Enable experimental boot-selection writes in the app configuration")
-        if action in ("baseline", "switch", "cycle") and network not in NETWORKS:
+        if action in ("baseline", "switch", "cycle", "verify_selection") and network not in NETWORKS:
             raise LabError("Choose a firmware")
         if type(cycles) is not int or not 1 <= cycles <= 20:
             raise LabError("Choose 1–20 complete round trips")

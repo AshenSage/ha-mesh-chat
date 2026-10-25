@@ -375,7 +375,11 @@ def run(action, configured, data, network=None, *, board_confirmed=False, allow_
         return acknowledge_journal(data, reason)
     if action == "switch":
         require_closed_journal(data)
-    registry = load_registry(data) if action in ("baseline", "switch", "resnapshot") else None
+    if action == "verify_selection":
+        journal = json.loads((data / "last-selection.json").read_text())
+        if journal.get("status") != "written" or journal.get("target") != network:
+            raise LabError("Verification requires a written journal for the requested target")
+    registry = load_registry(data) if action in ("baseline", "switch", "resnapshot", "verify_selection") else None
     usb = resolve_port(configured, registry)
     if action == "resnapshot":
         if set(registry.get("profiles", {})) != set(NETWORKS):
@@ -409,12 +413,14 @@ def run(action, configured, data, network=None, *, board_confirmed=False, allow_
     with Radio(usb["device"]) as radio:
         current = radio.inspect()
         require_same_device(current, registry)
-        if action == "switch":
+        if action in ("switch", "verify_selection"):
             require_slot_attestations(current, registry)
             verify_slot_projects(radio.esp.read_flash)
     active = next((n for n, slot in NETWORKS.items() if slot == current["selected_slot"]), None)
     if active is None:
         raise LabError("Current boot selection is unconfirmed")
+    if action == "verify_selection" and active != network:
+        raise LabError("Journal target is not currently selected; no write attempted")
     # The runtime handshake below, not selected_slot, establishes running firmware.
     time.sleep(3)
     phase("probe_before")
@@ -446,6 +452,10 @@ def run(action, configured, data, network=None, *, board_confirmed=False, allow_
     # a write. Later target probes cannot retroactively prevent that write.
     phase("probe_before")
     compare_profile(probe(active, configured, registry), before)
+    if action == "verify_selection":
+        mark_selection(data, "verified")
+        return {"status": "already_selected_verified", "from": active, "to": network,
+                "selection_written": False, "runtime_checks": 2, "profile_verified": True}
     usb = resolve_port(configured, registry)
     with Radio(usb["device"], board_confirmed=board_confirmed,
                allow_boot_selection_write=allow_boot_selection_write) as radio:
@@ -469,7 +479,7 @@ def run(action, configured, data, network=None, *, board_confirmed=False, allow_
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=("inspect", "enrol", "baseline", "switch", "resnapshot", "acknowledge_journal", "ports"))
+    parser.add_argument("action", choices=("inspect", "enrol", "baseline", "switch", "resnapshot", "acknowledge_journal", "verify_selection", "ports"))
     parser.add_argument("--reason", choices=ACK_REASONS)
     parser.add_argument("--device", default="")
     parser.add_argument("--data", default="/data")

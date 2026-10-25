@@ -123,3 +123,9 @@ Executed: `python -m pytest -q` — 70 passed in 0.90s; `git diff --check` passe
 Rechecked current select/mark_selection/run and server start/execute. Pending, written and unknown states block switch/cycle before device access and again inside Radio.select. File-only acknowledge_journal requires an explicit bounded reason code, archives the complete original pre-state before marking acknowledged, and records the reason in the report. Added UI/CLI/API route and tests for all gates and archive preservation. Exact commands: ../mesh-lab-venv/bin/python -m pytest -q; git diff --check. No physical operations; no recovery claim.
 
 Executed: `python -m pytest -q` — 74 passed in 0.96s; `git diff --check` passed. No device operations.
+
+## R2-6 — close matching written journals through write-free verification retries
+
+Rechecked current run and journal transition after R2-5. Added verify_selection for the already selected target: both baseline probes must succeed; then only a matching written journal becomes verified. Pending, other-target and failed probes leave journal/pre-state unchanged. This explicitly resolves the tension with R2-5: switch remains blocked; retry is observation-only and never calls select. UI/API/CLI expose it. Executed ../mesh-lab-venv/bin/python -m pytest -q and git diff --check; all transport/protocol fixtures fake, no device operations.
+
+Executed: `python -m pytest -q` — 78 passed in 0.98s; `git diff --check` passed. No device operations.

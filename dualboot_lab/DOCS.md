@@ -123,3 +123,6 @@ A corrupt report is quarantined as `report-corrupt-*.json`; startup begins a new
 ### Open selection journal
 
 `pending` or `written` blocks every new switch and round test in both server and worker, including the final writer. Never overwrite the recovery pre-state with a new attempt. After independently inspecting/recovering the board, explicitly use `acknowledge_journal --reason manual_recovery_checked` (or `abandoned_after_inspection`). This file-only action archives the original journal and reason before marking it acknowledged. It is not recovery or hardware validation. No automatic acknowledgement occurs.
+
+
+After a failed post-write verification, `verify_selection --network TARGET` retries only observation of the already selected target: it checks backup/device/attestations, compares two live protocol probes with its baseline, and marks a matching `written` journal `verified`. It never calls Radio.select. A pending or different-target journal remains unchanged and requires investigation. Ordinary switch/cycle remains blocked until verification or explicit acknowledgement succeeds.
