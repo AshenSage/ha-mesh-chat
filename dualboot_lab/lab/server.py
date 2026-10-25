@@ -13,10 +13,12 @@ from aiohttp import web
 
 from .layout import LabError, NETWORKS
 from .worker import save_json
-from .diagnostics import PHASES
+from .diagnostics import PHASES, PHASE_TIMEOUTS
 
 DATA = Path(os.environ.get("LAB_DATA", "/data"))
 LOCAL = os.environ.get("LAB_LOCAL") == "1"
+STARTUP_TIMEOUT = 30
+TERMINATION_GRACE = 15
 
 
 def now():
@@ -56,6 +58,40 @@ class Lab:
     def persist(self):
         save_json(self.path, self.state)
 
+    def record_phase(self, event, action):
+        if event.get("type") == "phase" and event.get("phase") in PHASES and self.active_run is not None:
+            self.active_run["last_phase"] = event["phase"]
+            self.active_run.setdefault("phase_events", []).append({"time": now(), "action": action,
+                                                                 "phase": event["phase"]})
+            self.persist()
+
+    async def stop_worker(self, process, action):
+        if process.returncode is not None:
+            return
+        if self.active_run is not None:
+            self.active_run["termination_requested"] = True
+            self.persist()
+        try:
+            process.terminate()
+        except ProcessLookupError:
+            return
+        try:
+            output, _ = await asyncio.wait_for(process.communicate(), TERMINATION_GRACE)
+            for line in output.splitlines():
+                try:
+                    self.record_phase(json.loads(line), action)
+                except (ValueError, TypeError):
+                    continue
+        except asyncio.TimeoutError:
+            if self.active_run is not None:
+                self.active_run["forced_kill"] = True
+                self.persist()
+            try:
+                process.kill()
+            except ProcessLookupError:
+                pass
+            await process.wait()
+
     async def worker(self, action, config, network=None):
         started = time.monotonic()
         command = [sys.executable, "-m", "lab.worker", action, "--device", config.get("device", ""),
@@ -68,9 +104,8 @@ class Lab:
             command.append("--allow-boot-selection-write")
         self.process = await asyncio.create_subprocess_exec(*command, stdout=asyncio.subprocess.PIPE,
                                                             stderr=asyncio.subprocess.DEVNULL)
-        timeout = 600 if action in ("enrol", "resnapshot") else 120
         try:
-            deadline = time.monotonic() + timeout
+            deadline = time.monotonic() + STARTUP_TIMEOUT
             result = None
             while True:
                 line = await asyncio.wait_for(self.process.stdout.readline(), max(0, deadline - time.monotonic()))
@@ -78,14 +113,12 @@ class Lab:
                     break
                 event = json.loads(line)
                 if event.get("type") == "phase" and event.get("phase") in PHASES:
-                    if self.active_run is not None:
-                        self.active_run["last_phase"] = event["phase"]
-                        self.active_run.setdefault("phase_events", []).append({"time": now(), "action": action,
-                                                                             "phase": event["phase"]})
-                        self.persist()
+                    deadline = time.monotonic() + PHASE_TIMEOUTS[event["phase"]]
+                    self.record_phase(event, action)
                 elif event.get("type") == "result":
                     result = event
-            await asyncio.wait_for(self.process.wait(), max(0, deadline - time.monotonic()))
+                    break
+            await asyncio.wait_for(self.process.wait(), STARTUP_TIMEOUT)
             if result is None:
                 raise LabError("Worker ended without a result; phase evidence retained")
             if self.process.returncode != 0 or not result.get("ok"):
@@ -97,11 +130,12 @@ class Lab:
                 evidence["duration_seconds"] = round(time.monotonic() - started, 2)
             return evidence
         except asyncio.TimeoutError as exc:
-            raise LabError("USB operation timed out. Firmware state unknown; no automatic retry") from exc
+            if self.active_run is not None:
+                self.active_run["error_phase"] = self.active_run.get("last_phase", "startup")
+            raise LabError("USB phase timed out. Firmware state unknown; cleanup requested, no retry") from exc
         finally:
             if self.process.returncode is None:
-                self.process.kill()
-                await self.process.wait()
+                await self.stop_worker(self.process, action)
             self.process = None
 
     def start(self, action, config, network=None, cycles=1):

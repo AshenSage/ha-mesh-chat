@@ -11,6 +11,7 @@ import contextlib
 import io
 import json
 import os
+import signal
 from pathlib import Path
 import sys
 import time
@@ -21,6 +22,22 @@ from .diagnostics import phase
 
 from .layout import (EXPECTED, FLASH_SIZE, NETWORKS, SECTOR, TABLE_OFFSET,
                      LabError, digest, plan_selection, selected_slot, validate_table, verify_slot_projects)
+
+
+class WorkerTerminated(LabError):
+    pass
+
+
+def install_signal_handlers():
+    terminating = False
+    def terminate(_number, _frame):
+        nonlocal terminating
+        if not terminating:
+            terminating = True
+            exc = WorkerTerminated("Worker termination requested; resetting open ROM/stub session")
+            exc.lab_phase = diagnostics.LAST_PHASE
+            raise exc
+    signal.signal(signal.SIGTERM, terminate)
 
 
 def save_json(path, value):
@@ -365,6 +382,7 @@ def main():
         output.write(json.dumps(value) + "\n")
         output.flush()
     diagnostics.SINK = emit
+    install_signal_handlers()
     # Third-party debug output may contain protocol data. Discard it; publish
     # only the explicitly selected, non-secret evidence fields above.
     try:

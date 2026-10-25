@@ -43,3 +43,9 @@ Executed: `python -m pytest -q` — 27 passed in 0.39s; `git diff --check` passe
 Rechecked worker Radio constructor/select/run/main and parent command construction after B2. The server forwards explicit board/write CLI flags from options; direct CLI run and Radio.select both default to denial. Tests cover all missing-flag combinations and prove device resolution/write methods are not entered. Explicit flags express permission, not hardware validation.
 
 Executed: `python -m pytest -q` — 30 passed in 0.58s; `git diff --check` passed. No device operations.
+
+## B3 — unwind ROM sessions on SIGTERM and bound individual phases
+
+Rechecked subprocess timeout/kill and Radio.__exit__ after B2/B6. Worker SIGTERM raises through the context manager to attempt hard_reset/close; repeated TERM does not interrupt cleanup. Parent sends TERM and allows 15 seconds before recording a forced kill. Replaced total 120-second deadline with per-phase budgets (inspect 180s, snapshot 1800s, probes/write/readback 90s, reset/startup 30s). Tests simulate signal unwind, cleanup success/failure, timeout cause and phase preservation without devices. Reset success on real USB is NOT RUN.
+
+Executed: `python -m pytest -q` — 34 passed in 0.51s; `git diff --check` passed. No device operations.

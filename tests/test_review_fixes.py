@@ -181,3 +181,77 @@ def test_b6_flags_are_required_in_worker_and_writer(board, allowed, tmp_path, mo
     with pytest.raises(LabError, match="Explicit"):
         radio.select("meshcore", {}, tmp_path)
     assert radio.esp.writes == []
+
+
+def test_b3_sigterm_unwinds_radio_context_and_preserves_failure_phase(monkeypatch):
+    from lab import diagnostics
+    handlers, cleanup = {}, []
+    monkeypatch.setattr(worker.signal, "signal", lambda n, fn: handlers.update({n: fn}))
+    worker.install_signal_handlers()
+    class OpenRadio(worker.Radio):
+        def __enter__(self):
+            self.esp = SimpleNamespace(hard_reset=lambda: cleanup.append("reset"),
+                                      _port=SimpleNamespace(close=lambda: cleanup.append("close")))
+            return self
+    with pytest.raises(worker.WorkerTerminated) as raised:
+        with OpenRadio("fake"):
+            diagnostics.phase("write")
+            handlers[worker.signal.SIGTERM](None, None)
+    assert raised.value.lab_phase == "write"
+    assert cleanup == ["reset", "close"]
+    handlers[worker.signal.SIGTERM](None, None)  # second TERM does not interrupt cleanup
+
+
+@pytest.mark.parametrize("stuck", [False, True])
+def test_b3_parent_terminates_before_kill_and_collects_cleanup_phase(tmp_path, monkeypatch, stuck):
+    import lab.server as server
+    monkeypatch.setattr(server, "TERMINATION_GRACE", 0.01)
+    async def scenario():
+        calls = []
+        class Process:
+            returncode = None
+            def terminate(self):
+                calls.append("terminate")
+            def kill(self):
+                calls.append("kill")
+            async def communicate(self):
+                if stuck:
+                    await asyncio.Future()
+                self.returncode = -15
+                return b'{"type":"phase","phase":"reset"}\n', None
+            async def wait(self):
+                self.returncode = -9
+        lab = Lab(tmp_path)
+        lab.active_run = {"last_phase": "write"}
+        await lab.stop_worker(Process(), "switch")
+        assert calls == (["terminate", "kill"] if stuck else ["terminate"])
+        assert lab.active_run.get("forced_kill", False) == stuck
+        if not stuck:
+            assert lab.active_run["last_phase"] == "reset"
+    asyncio.run(scenario())
+
+
+def test_b3_phase_timeout_preserves_cause_and_requests_cleanup(tmp_path, monkeypatch):
+    import lab.server as server
+    monkeypatch.setitem(server.PHASE_TIMEOUTS, "write", 0.01)
+    async def scenario():
+        stream = asyncio.StreamReader()
+        stream.feed_data(b'{"type":"phase","phase":"write"}\n')
+        class Process:
+            stdout, returncode = stream, None
+            def terminate(self):
+                pass
+            async def communicate(self):
+                self.returncode = -15
+                return b'{"type":"phase","phase":"reset"}\n', None
+        async def create(*_, **__):
+            return Process()
+        monkeypatch.setattr(server.asyncio, "create_subprocess_exec", create)
+        lab = Lab(tmp_path)
+        lab.active_run = {"status": "running"}
+        with pytest.raises(LabError, match="phase timed out"):
+            await lab.worker("switch", {"device": "fake"}, "meshcore")
+        assert lab.active_run["error_phase"] == "write"
+        assert lab.active_run["last_phase"] == "reset"
+        assert lab.active_run["termination_requested"]
+    asyncio.run(scenario())
