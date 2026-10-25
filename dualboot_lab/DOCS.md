@@ -156,3 +156,6 @@ The storage audit covers git-tracked MeshCore `.c/.cpp/.h/.ino` sources only. `.
 
 
 MeshCore contact enumeration explicitly requests `timeout=120` seconds (pinned `ContactCommands.get_contacts` supports this keyword), rather than relying on the short command default. A missing/incomplete final CONTACTS response still fails closed; the parent phase timeout remains an additional bound. Timing with up to 350 actual contacts is NOT RUN.
+
+
+Journal semantics: **pending means the write may have begun**, including partial or completed writes before the status update. It never proves that no flash change occurred. `written` means the transfer completed, while post-write readback/runtime verification may still have failed; only `verified` records successful checks. File-only recovery plans repeat this caution, including no-op plans. Preserve the pre-state and inspect the actual board independently before any physical recovery.

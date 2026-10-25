@@ -529,3 +529,14 @@ def test_r2_p3_debug_rotation_is_bounded_private_and_sanitized(tmp_path, monkeyp
         assert path.stat().st_mode & 0o777 == 0o600
         assert "private key" not in path.read_text()
         assert json.loads(path.read_text())["exception_type"] == "RuntimeError"
+
+
+@pytest.mark.parametrize("changed", [False, True])
+def test_r2_p3_pending_recovery_plan_never_implies_no_write(tmp_path, changed):
+    from prepare_selection_recovery import prepare
+    from test_dualboot_lab import otadata
+    journal = {"mac": "trusted", "status": "pending", "otadata_hex": otadata(1).hex()}
+    result = prepare(journal, otadata(1, 2) if changed else otadata(1), "trusted", tmp_path / "output")
+    assert result["journal_status"] == "pending"
+    assert "write may have begun" in result["journal_caution"]
+    assert result["hardware_validated"] is False

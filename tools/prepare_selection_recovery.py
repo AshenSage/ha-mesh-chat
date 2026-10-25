@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Prepare a recovery candidate from PRIVATE FILES only. Never opens USB or writes flash."""
+"""Prepare a recovery candidate from PRIVATE FILES only. Never opens USB or writes flash.
+
+A pending journal means a write MAY HAVE BEGUN; it does not mean no flash write
+occurred. Determine the actual state independently before any manual recovery.
+"""
 import argparse
 import json
 import os
@@ -14,6 +18,8 @@ from lab.worker import private_open, save_json
 def prepare(journal, current, expected_mac, output):
     if journal.get("mac") != expected_mac or journal.get("status") not in ("pending", "written", "verified"):
         raise LabError("Journal MAC/status does not match the operator's trusted record")
+    caution = {"journal_status": journal["status"],
+               "journal_caution": "pending means a write may have begun; verify actual device state independently"}
     previous = bytes.fromhex(journal["otadata_hex"])
     if len(previous) != OTA_SIZE or len(current) != OTA_SIZE:
         raise LabError("Both OTA files must have the exact partition length")
@@ -23,7 +29,7 @@ def prepare(journal, current, expected_mac, output):
     target = next(name for name, number in NETWORKS.items() if number == slot)
     candidate = plan_selection(current, target)
     if candidate is None:
-        return {"status": "already_selected", "hardware_validated": False}
+        return {"status": "already_selected", "hardware_validated": False, **caution}
     sector, content = candidate
     output.mkdir(parents=True, exist_ok=True, mode=0o700)
     path = output / "recovery-sector.bin"
@@ -33,7 +39,7 @@ def prepare(journal, current, expected_mac, output):
         os.fsync(stream.fileno())
     result = {"status": "manual_candidate_not_executed", "target": target, "mac": expected_mac,
               "offset": OTA_OFFSET + sector * SECTOR, "size": len(content), "sha256": digest(content),
-              "source_current_sha256": digest(current), "hardware_validated": False}
+              "source_current_sha256": digest(current), "hardware_validated": False, **caution}
     save_json(output / "recovery-plan.json", result)
     return result
 

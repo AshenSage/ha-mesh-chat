@@ -195,3 +195,9 @@ Executed: `python -m pytest -q` — 99 passed in 1.97s; `git diff --check` passe
 Rechecked pinned meshcore 2.2.5 contact.py signature get_contacts(lastmod=0, timeout=5) and current probe call. Added explicit timeout=120 seconds; fake probes assert the keyword value and missing completion still raises LabError. Exact commands: local source inspection (initial guessed MessagingCommands/contacts module lookups failed; actual ContactCommands in contact.py found by rg), ../mesh-lab-venv/bin/python -m pytest -q; git diff --check. No real protocol query, contacts transfer, device/reset/reboot or flash operation.
 
 Executed: `python -m pytest -q` — 99 passed in 1.21s; `git diff --check` passed. No device operations.
+
+## R2-P3-6 — make pending journal uncertainty explicit in recovery plans
+
+Rechecked pending write ordering, DOCS and offline recovery return paths. Help text and every recovery plan, including no-op, now state that pending means a write may have begun; status is not evidence of untouched flash. Docs distinguish transfer completion from readback/runtime verification. Tests cover pending with both changed/no-op synthetic OTA files. Exact commands: ../mesh-lab-venv/bin/python -m pytest -q; git diff --check. Recovery candidate creation was private files only; no device/flash/reset/reboot operations.
+
+Executed: `python -m pytest -q` — 101 passed in 1.06s; `git diff --check` passed. No device operations.
