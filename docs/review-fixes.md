@@ -49,3 +49,9 @@ Executed: `python -m pytest -q` — 30 passed in 0.58s; `git diff --check` passe
 Rechecked subprocess timeout/kill and Radio.__exit__ after B2/B6. Worker SIGTERM raises through the context manager to attempt hard_reset/close; repeated TERM does not interrupt cleanup. Parent sends TERM and allows 15 seconds before recording a forced kill. Replaced total 120-second deadline with per-phase budgets (inspect 180s, snapshot 1800s, probes/write/readback 90s, reset/startup 30s). Tests simulate signal unwind, cleanup success/failure, timeout cause and phase preservation without devices. Reset success on real USB is NOT RUN.
 
 Executed: `python -m pytest -q` — 34 passed in 0.51s; `git diff --check` passed. No device operations.
+
+## B1 — exercise complete run guards and pinned esptool write contracts
+
+Rechecked current run (287–368) after phase/permission/cleanup changes. Added full fake-radio orchestration for damaged/missing backups, MAC/table/app drift, both pre-write probes, both target probes, first_boot_baseline and no-op. Added a second current-profile observation before select. Pre-write failures assert zero select calls; post-write failures assert one attempt, unverified journal and no retry (a completed write cannot be retroactively prevented). Contract test actually invokes 4.11.0 decorated compressed-write/read/hash methods on an uninitialised fake-transport object, with no serial port, and checks closure signatures.
+
+Executed: `python -m pytest -q` — 45 passed in 0.56s; `git diff --check` passed. No device operations.

@@ -341,6 +341,10 @@ def run(action, configured, data, network=None, *, board_confirmed=False, allow_
     if active not in registry["profiles"]:
         raise LabError("Capture the current firmware baseline before the first switch")
     compare_profile(before, registry["profiles"][active])
+    # A second current-runtime observation must agree before entering ROM for
+    # a write. Later target probes cannot retroactively prevent that write.
+    phase("probe_before")
+    compare_profile(probe(active, configured, registry), before)
     usb = resolve_port(configured, registry)
     with Radio(usb["device"], board_confirmed=board_confirmed,
                allow_boot_selection_write=allow_boot_selection_write) as radio:
