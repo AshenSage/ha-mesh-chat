@@ -135,3 +135,9 @@ Executed: `python -m pytest -q` — 78 passed in 0.98s; `git diff --check` passe
 Rechecked current MeshCore probe/compare_profile and related tests. Radio and channel hashes are separate; contacts_count and a set of hashed stable contact records replace the monolithic settings hash. Baseline contact membership is a subset requirement; growth is allowed, losses/channel-key drift fail with the component name. Missing old component fields demand Baseline neu erfassen. Tests cover growth, loss, key drift, old schema and run-level no-select on contact loss. Exact commands: ../mesh-lab-venv/bin/python -m pytest -q; git diff --check. No device, flash, reset or reboot operations.
 
 Executed: `python -m pytest -q` — 83 passed in 6.70s; `git diff --check` passed. No device operations.
+
+## R2-3 — check live profile before resnapshot and retain chained recovery points
+
+Rechecked resnapshot/snapshot at current lines. Live active profile must match baseline before snapshot; a second inspect checks unchanged device/selection. Drift never snapshots or changes the registry pointer. previous_backup chains recovery metadata; enrol_backup and latest two snapshots are protected. Older snapshots are candidates only, deleted only after explicit file-only prune_snapshots --reason retention_reviewed with an audit record. Tests cover drift, ordering, five linked snapshots, no automatic deletion and protected retention. Exact commands: ../mesh-lab-venv/bin/python -m pytest -q; git diff --check. No device operations; inactive live verification and actual recovery remain NOT RUN.
+
+Executed: `python -m pytest -q` — 86 passed in 0.97s; `git diff --check` passed. No device operations.

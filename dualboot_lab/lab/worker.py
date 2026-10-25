@@ -361,6 +361,39 @@ def mark_selection(data, status):
     save_json(path, {**state, "status": status, "updated_at": time.time()})
 
 
+def recovery_point(registry):
+    return {key: registry[key] for key in ("backup", "backup_sha256", "backup_flash_md5", "snapshot_at", "previous_backup")
+            if key in registry}
+
+
+def retention_candidates(registry):
+    chain, point = [], recovery_point(registry)
+    while point.get("backup"):
+        chain.append(point["backup"])
+        point = point.get("previous_backup") or {}
+    protected = set(chain[:2]) | {registry.get("enrol_backup", {}).get("backup")}
+    return sorted(set(chain) - protected)
+
+
+def prune_snapshots(data, reason):
+    if reason != "retention_reviewed":
+        raise LabError("Explicit retention_reviewed acknowledgement required")
+    registry = load_registry(data)
+    candidates = retention_candidates(registry)
+    # Commit an audit record before removal. Unknown/orphan files are untouched.
+    save_json(data / ("snapshot-prune-" + uuid.uuid4().hex + ".json"),
+              {"reason": reason, "time": time.time(), "candidates": candidates})
+    deleted = []
+    for name in candidates:
+        if Path(name).name != name or not name.startswith("flash-") or not name.endswith(".bin"):
+            raise LabError("Invalid snapshot reference; nothing further removed")
+        path = data / name
+        if path.is_file():
+            path.unlink()
+            deleted.append(name)
+    return {"status": "snapshot_retention_acknowledged", "deleted": deleted}
+
+
 def snapshot(radio, data, registry):
     """Read flash into a new recovery point; retain the old one on failure."""
     phase("snapshot")
@@ -381,6 +414,13 @@ def snapshot(radio, data, registry):
     updated = {**registry, "backup": path.name, "backup_sha256": digest(image),
                "backup_flash_md5": flash_md5,
                "snapshot_at": time.time(), "snapshot_profiles": sorted(registry.get("profiles", {}))}
+    previous = recovery_point(registry)
+    updated["previous_backup"] = previous or None
+    oldest = previous
+    while oldest.get("previous_backup"):
+        oldest = oldest["previous_backup"]
+    updated["enrol_backup"] = registry.get("enrol_backup") or oldest or recovery_point(updated)
+    updated["retention_pending"] = retention_candidates(updated)
     save_json(data / "registry.json", updated)
     return updated
 
@@ -391,6 +431,8 @@ def run(action, configured, data, network=None, *, board_confirmed=False, allow_
     if action == "switch" and allow_boot_selection_write is not True:
         raise LabError("Explicit boot-selection write permission is required")
     data.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if action == "prune_snapshots":
+        return prune_snapshots(data, reason)
     if action == "acknowledge_journal":
         return acknowledge_journal(data, reason)
     if action == "switch":
@@ -405,10 +447,24 @@ def run(action, configured, data, network=None, *, board_confirmed=False, allow_
         if set(registry.get("profiles", {})) != set(NETWORKS):
             raise LabError("Both profile baselines are required before resnapshot")
         with Radio(usb["device"]) as radio:
-            require_same_device(radio.inspect(), registry)
+            current = radio.inspect()
+            require_same_device(current, registry)
+            require_slot_attestations(current, registry)
+        active = next((n for n, slot in NETWORKS.items() if slot == current["selected_slot"]), None)
+        if active is None:
+            raise LabError("Current boot selection is unconfirmed")
+        time.sleep(3)
+        phase("probe_before")
+        compare_profile(probe(active, configured, registry), registry["profiles"][active])
+        with Radio(usb["device"]) as radio:
+            confirmed = radio.inspect()
+            require_same_device(confirmed, registry)
+            if confirmed["selected_slot"] != current["selected_slot"]:
+                raise LabError("Boot selection changed before snapshot")
             updated = snapshot(radio, data, registry)
         return {"status": "snapshot_saved", "snapshot_at": updated["snapshot_at"],
-                "snapshot_profiles": updated["snapshot_profiles"]}
+                "snapshot_profiles": updated["snapshot_profiles"], "live_profile_verified": active,
+                "retention_pending": updated["retention_pending"]}
     if action in ("inspect", "enrol"):
         with Radio(usb["device"]) as radio:
             info = radio.inspect(strict=action == "enrol")
@@ -499,8 +555,8 @@ def run(action, configured, data, network=None, *, board_confirmed=False, allow_
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=("inspect", "enrol", "baseline", "switch", "resnapshot", "acknowledge_journal", "verify_selection", "ports"))
-    parser.add_argument("--reason", choices=ACK_REASONS)
+    parser.add_argument("action", choices=("inspect", "enrol", "baseline", "switch", "resnapshot", "acknowledge_journal", "verify_selection", "prune_snapshots", "ports"))
+    parser.add_argument("--reason", choices=ACK_REASONS + ("retention_reviewed",))
     parser.add_argument("--device", default="")
     parser.add_argument("--data", default="/data")
     parser.add_argument("--network", choices=tuple(NETWORKS))

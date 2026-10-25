@@ -447,3 +447,28 @@ def test_r2_1_generic_projects_require_valid_runtime_attestations(tmp_path):
     radio.inspect = lambda: record
     assert radio.select("meshtastic", record, tmp_path)
     assert radio.esp.writes == [(0x1D000, 4096)]
+
+
+
+def test_r2_3_snapshot_chain_retention_never_automatically_deletes(tmp_path, monkeypatch):
+    import hashlib
+    monkeypatch.setattr(worker, "FLASH_SIZE", 0x9000)
+    image = b"\xff" * 0x8000 + table()
+    radio = SimpleNamespace(esp=SimpleNamespace(read_flash=lambda *_: image,
+                            flash_md5sum=lambda *_: hashlib.md5(image).hexdigest()))
+    registry = {"profiles": {}}
+    names = []
+    for _ in range(5):
+        previous = registry.get("backup")
+        registry = worker.snapshot(radio, tmp_path, registry)
+        names.append(registry["backup"])
+        if previous:
+            assert registry["previous_backup"]["backup"] == previous
+    assert all((tmp_path / name).exists() for name in names)
+    assert set(worker.retention_candidates(registry)) == set(names[1:3])
+    assert registry["enrol_backup"]["backup"] == names[0]
+    with pytest.raises(LabError, match="acknowledgement"):
+        worker.prune_snapshots(tmp_path, None)
+    result = worker.prune_snapshots(tmp_path, "retention_reviewed")
+    assert set(result["deleted"]) == set(names[1:3])
+    assert all((tmp_path / name).exists() for name in (names[0], *names[-2:]))

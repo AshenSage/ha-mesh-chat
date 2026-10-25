@@ -248,3 +248,27 @@ def test_r2_2_contact_loss_before_switch_prevents_select(setup_run):
     with pytest.raises(LabError, match="contacts_set"):
         s.run()
     assert not s.calls
+
+
+
+def test_r2_3_resnapshot_profile_drift_preserves_pointer_and_skips_snapshot(setup_run, monkeypatch):
+    s = setup_run
+    original = (s.data / "registry.json").read_bytes()
+    s.observations.append({**profile("meshcore"), "identity_sha256": "new key"})
+    monkeypatch.setattr(worker, "snapshot", lambda *_: pytest.fail("no snapshot after profile drift"))
+    with pytest.raises(LabError, match="identity_sha256"):
+        s.run(action="resnapshot")
+    assert (s.data / "registry.json").read_bytes() == original
+    assert not s.calls
+
+
+def test_r2_3_snapshot_happens_only_after_matching_live_probe(setup_run, monkeypatch):
+    s = setup_run
+    calls = []
+    def snapshot(_radio, _data, registry):
+        calls.append("snapshot")
+        return {**registry, "snapshot_at": 1, "snapshot_profiles": sorted(registry["profiles"]), "retention_pending": []}
+    monkeypatch.setattr(worker, "snapshot", snapshot)
+    result = s.run(action="resnapshot")
+    assert result["live_profile_verified"] == "meshcore" and calls == ["snapshot"]
+    assert len(s.entered) == 2 and not s.calls

@@ -129,3 +129,6 @@ After a failed post-write verification, `verify_selection --network TARGET` retr
 
 
 MeshCore fingerprint schema: radio and channels have separate hashes. Contacts are a set of per-contact hashes over public key/name/type/flags plus a count; automatic additions are accepted, but every baseline contact must remain unchanged/present. Error messages name only the component. Raw contact records and PSKs are not logged. Earlier combined-hash baselines fail with `Baseline neu erfassen`; archive/re-enrol deliberately and capture both manual baselines, never silently migrate them.
+
+
+Resnapshot checks the currently active live profile against its baseline before reading the new full-flash image. It rechecks device/slot selection before saving; any mismatch leaves the old pointer unchanged. The inactive profile cannot be live-checked without switching; second-board restoration of the current snapshot remains NOT RUN. Recovery references are chained as `previous_backup`, with immutable `enrol_backup`. The original enrolment snapshot and latest two snapshots are protected. Older known snapshots are listed as `retention_pending` and are removed only through explicit file-only `prune_snapshots --reason retention_reviewed`. Unknown/orphan snapshots are never removed automatically; inspect storage before long experiments.

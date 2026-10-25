@@ -163,13 +163,15 @@ class Lab:
     def start(self, action, config, network=None, cycles=1, reason=None):
         if self.task and not self.task.done():
             raise LabError("A USB job is already running")
-        if action not in ("inspect", "enrol", "baseline", "switch", "resnapshot", "cycle", "acknowledge_journal", "verify_selection"):
+        if action not in ("inspect", "enrol", "baseline", "switch", "resnapshot", "cycle", "acknowledge_journal", "verify_selection", "prune_snapshots"):
             raise LabError("Unknown operation")
         if action in ("switch", "cycle"):
             require_closed_journal(self.data)
         if action == "acknowledge_journal" and reason not in ACK_REASONS:
             raise LabError("Choose an explicit journal acknowledgement reason")
-        if not config.get("device") and action != "acknowledge_journal":
+        if action == "prune_snapshots" and reason != "retention_reviewed":
+            raise LabError("Explicit retention_reviewed acknowledgement required")
+        if not config.get("device") and action not in ("acknowledge_journal", "prune_snapshots"):
             raise LabError("Select a USB device in the app configuration")
         if action != "inspect" and config.get("board_confirmed") is not True:
             raise LabError("Confirm Heltec V4 ESP32-S3R2 / 16 MB / 868 MHz in the app configuration")
@@ -212,7 +214,7 @@ class Lab:
                             raise LabError("Cycle did not produce a verified actual transition")
                         run["steps"].append({"time": now(), "cycle": cycle, "result": result})
                         self.persist()
-            elif run["action"] == "acknowledge_journal":
+            elif run["action"] in ("acknowledge_journal", "prune_snapshots"):
                 result = await self.worker(run["action"], config, reason=run["reason"])
                 run["steps"].append({"time": now(), "result": result})
             else:
