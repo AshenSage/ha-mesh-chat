@@ -9,6 +9,7 @@ arch:
 startup: application
 boot: manual
 init: false
+timeout: 30
 ingress: true
 ingress_port: 8099
 panel_icon: mdi:swap-horizontal-bold

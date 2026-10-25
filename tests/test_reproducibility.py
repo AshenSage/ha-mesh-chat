@@ -40,3 +40,12 @@ def test_c2_platformio_patch_does_not_reintroduce_floating_versions():
     assert "platform = platformio/espressif32@6.11.0" in additions
     assert "~" not in additions and "^" not in additions
     assert "ArduinoJson @ 7.4.3" in additions
+
+
+
+def test_r2_8_supervisor_stop_budget_exceeds_http_and_worker_cleanup():
+    import yaml
+    from lab.server import TERMINATION_GRACE, HTTP_SHUTDOWN_TIMEOUT
+    config = yaml.safe_load((ROOT / "dualboot_lab/config.yaml").read_text())
+    assert 10 <= config["timeout"] <= 300
+    assert config["timeout"] >= TERMINATION_GRACE + HTTP_SHUTDOWN_TIMEOUT + 10

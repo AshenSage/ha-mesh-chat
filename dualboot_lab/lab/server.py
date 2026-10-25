@@ -19,6 +19,7 @@ DATA = Path(os.environ.get("LAB_DATA", "/data"))
 LOCAL = os.environ.get("LAB_LOCAL") == "1"
 STARTUP_TIMEOUT = 30
 TERMINATION_GRACE = 15
+HTTP_SHUTDOWN_TIMEOUT = 2
 MAX_RUNS = 100
 MAX_REPORT_ARCHIVES = 5
 
@@ -285,4 +286,5 @@ def create_app(data=DATA):
 
 
 if __name__ == "__main__":
-    web.run_app(create_app(), host="127.0.0.1" if LOCAL else "0.0.0.0", port=8099)
+    web.run_app(create_app(), host="127.0.0.1" if LOCAL else "0.0.0.0", port=8099,
+                shutdown_timeout=HTTP_SHUTDOWN_TIMEOUT)

@@ -153,3 +153,9 @@ Executed: `python -m pytest -q` — 88 passed in 1.25s; `git diff --check` passe
 Rechecked FS_CALL/audit and downloaded pinned upstream 81dbae5 read-only. The newly detected exact DataStore.cpp:177 nvs_flash_erase line is consciously allowlisted with its destructive shared-NVS decision; factory-reset semantics are unchanged and such commands are excluded from persistence experiments. Expanded detection includes NVS erase/erase_partition, esp_partition erase/write families, VFS registration and native FS format. Docs state SPIFFS labels do not isolate shared NVS and Meshtastic side is unreviewed. Executed git clone of upstream, git checkout pinned ref, prepare_meshcore_usb.py /tmp/mesh-r2-source twice and --reset (all source-only, successful); ../mesh-lab-venv/bin/python -m pytest -q; git diff --check. No PlatformIO compile, device, flash, reset or reboot operation (script --reset reverses source patch only).
 
 Executed: `python -m pytest -q` — 95 passed in 1.08s; `git diff --check` passed. No device operations.
+
+## R2-8 — configure Supervisor stop timeout above worker cleanup grace
+
+Rechecked current TERMINATION_GRACE/config/web.run_app and official Home Assistant configuration reference: timeout is a supported integer (10–300, default 10). Set timeout:30, keep 15-second worker grace and explicitly bound HTTP request shutdown at 2 seconds. Static policy test verifies at least 10 seconds margin. Actual stop-during-write and running-board latency added as NOT RUN; standalone Docker needs the equivalent timeout. Executed official docs lookup, ../mesh-lab-venv/bin/python -m pytest -q and git diff --check. No actual container/add-on stop, device, flash, reset or reboot.
+
+Executed: `python -m pytest -q` — 96 passed in 1.43s; `git diff --check` passed. No device operations.
