@@ -104,13 +104,13 @@ Rechecked current snapshot/save_json, report startup/persist and all hardcoded O
 
 Executed: `python -m pytest -q` — 66 passed in 0.70s; `git diff --check` passed. No device operations.
 
-## Final software-only verification
+## Round 1 final software-only verification (historical; superseded by Round 2 below)
 
 A fresh Python 3.12 virtual environment installed the 2-package bootstrap and all 54 dev/build/runtime distributions using `--require-hashes` and `--no-build-isolation`. In that environment: `python -m pytest -q` — 66 passed; `python -m compileall -q dualboot_lab/lab tools` passed; `PYTHONPATH=dualboot_lab python -c 'import lab.server'` passed; `pip check` reported no broken requirements. The first manual import from repository root without PYTHONPATH failed due to that invocation's search path; the corrected invocation above and Docker's /app working directory include the lab package.
 
 The exact versioned source patch was reset/reapplied successfully against the pinned cached checkout, without compiling or accessing hardware. The offline A4 header transformation was evaluated on the allowlisted cached bootloader: source/written header both e903024f and length 15040; the selected dio/80m/16MB options already match this reference, so its expected hash is unchanged. No physical readback was performed. Actual fresh multiarchitecture builds belong to CI; actual HAOS/device results remain NOT RUN.
 
-Open gates: A2 generic descriptors require explicitly identifying firmware builds; A3 real V4-R2 cap correspondence; A5 manual OTA/selector boot hypothesis; B4 filesystem format-on-fail/power-cut/quiesce; B5 shared-NVS namespace comparison; C4 real Ingress non-admin/USB/reset; second-board recovery. No checker or operator template is labelled hardware-validated.
+Round 1 open gates at that commit: A2 generic descriptors require explicitly identifying firmware builds; A3 real V4-R2 cap correspondence; A5 manual OTA/selector boot hypothesis; B4 filesystem format-on-fail/power-cut/quiesce; B5 shared-NVS namespace comparison; C4 real Ingress non-admin/USB/reset; second-board recovery. No checker or operator template is labelled hardware-validated.
 
 ## R2-1 — bind slot identity to manual runtime attestations before switching
 
@@ -201,3 +201,12 @@ Executed: `python -m pytest -q` — 99 passed in 1.21s; `git diff --check` passe
 Rechecked pending write ordering, DOCS and offline recovery return paths. Help text and every recovery plan, including no-op, now state that pending means a write may have begun; status is not evidence of untouched flash. Docs distinguish transfer completion from readback/runtime verification. Tests cover pending with both changed/no-op synthetic OTA files. Exact commands: ../mesh-lab-venv/bin/python -m pytest -q; git diff --check. Recovery candidate creation was private files only; no device/flash/reset/reboot operations.
 
 Executed: `python -m pytest -q` — 101 passed in 1.06s; `git diff --check` passed. No device operations.
+
+
+## Round 2 final local verification and review handoff
+
+All nine numbered findings and six P3 items were implemented in their requested order, one commit each. The final documentation pass reconciles the README/server baseline instructions, keeps historical Round 1 statements explicitly historical, and separates A5's external-tool-only prerequisites from lab attestations (no circular lab prerequisite for A5). `docs/round3-review.md` gives a focused diff-review brief; independent third review is still pending.
+
+Executed from repository root: `../mesh-lab-venv/bin/python -m pytest -q` — 101 passed; `../mesh-lab-venv/bin/python -m compileall -q dualboot_lab/lab tools tests` passed; `PYTHONPATH=dualboot_lab ../mesh-lab-venv/bin/python -c 'import lab.server'` passed; `../mesh-lab-venv/bin/python -m pip check` — no broken requirements; `git diff --check` passed. The absolute executable is `/workspace/scratch/f79f0c21c0d5/mesh-lab-venv/bin/python` (Python 3.12); earlier per-point shorthand refers to this executable. The host default Python lacks pytest; the first baseline invocation there failed, then the existing locked environment was used (66 original tests passed).
+
+Source preparation, idempotence and source-only --reset passed on the actual pinned MeshCore checkout. A fresh local PlatformIO compile was started with `../mesh-lab-venv/bin/python tools/prepare_meshcore_usb.py /tmp/mesh-r2-source --build --output /tmp/mesh-r2-build`; final result belongs in the immutable-head review packet/CI evidence once available. This run never selects an upload target. No device, flash, physical reset/reboot, HA instance or container stop operation was run. No hardware gate is marked passed. Old combined-hash baselines must be deliberately recaptured; actual profile persistence and recovery remain NOT RUN.

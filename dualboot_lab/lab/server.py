@@ -193,7 +193,7 @@ class Lab:
             registry_path = self.data / "registry.json"
             registry = json.loads(registry_path.read_text()) if registry_path.exists() else {}
             if set(registry.get("profiles", {})) != set(NETWORKS):
-                raise LabError("Establish both firmware baselines with individual switches first")
+                raise LabError("Manually boot and establish both firmware baselines first")
         run = {"id": uuid.uuid4().hex, "action": action, "started": now(),
                "status": "running", "steps": [], "target": network, "cycles": cycles, "reason": reason}
         self.state["runs"].append(run)

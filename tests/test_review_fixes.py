@@ -55,7 +55,7 @@ def test_a1_cycle_stops_before_switch_when_resnapshot_fails(tmp_path):
 
 
 @pytest.mark.parametrize("swapped,generic", [(True, False)])
-def test_a2_swapped_or_generic_slot_projects_prevent_write(tmp_path, swapped, generic):
+def test_a2_conflicting_slot_projects_prevent_write(tmp_path, swapped, generic):
     from test_dualboot_lab import Stub
     radio = worker.Radio("fake", board_confirmed=True, allow_boot_selection_write=True)
     radio.mac = "00:11"

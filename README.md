@@ -12,7 +12,7 @@
 
 > **Current focus: prove USB dualboot in Home Assistant.** An experimental HAOS app (add-on) and software tests are now included. Hardware stability is **not yet validated**. The full chat product is deferred until this foundation is reproducible.
 
-> **Post-review readiness:** the current reference apps have generic `arduino-lib-builder` project descriptors and are refused by the new pre-write slot guard. The manual bootloader/OTA hypothesis, actual R2 cap observation, filesystem power-cut durability and HAOS access/USB checks are still NOT RUN. This branch is ready for software review, **not cleared for a first flash or unattended rounds**. See the [per-point fix/test record](docs/review-fixes.md).
+> **Post-review readiness:** generic `arduino-lib-builder` descriptors now require both manually booted USB runtime baselines, bound to unchanged slot/app hashes. No switch creates a new baseline. The manual bootloader/OTA hypothesis, actual R2 cap observation, filesystem power-cut durability and HAOS access/USB checks are still NOT RUN. This branch is ready for software review, **not cleared for a first flash or unattended rounds**. See the [per-point fix/test record](docs/review-fixes.md).
 
 ## Start here: Dualboot Lab
 
@@ -20,7 +20,7 @@ The core of this repository is now the [Dualboot Lab](dualboot_lab/DOCS.md):
 
 1. Inspect the Heltec V4's chip, 16 MB flash and actual partition table over USB.
 2. Enrol the prepared dualboot board and save a complete private flash backup.
-3. Record a real USB firmware response and the first profile baseline.
+3. Manually boot both configured firmwares and capture both real USB profile baselines and slot attestations.
 4. Request MeshCore → Meshtastic and Meshtastic → MeshCore from HA. Only boot-selection metadata is written; firmware apps and profile partitions are not reflashed during a switch.
 5. Reconnect, check the target protocol twice and compare identity/selected settings with its baseline.
 6. Run bounded round-trip tests and export a JSON report. Stop on the first failure; never silently retry or resume after a restart.

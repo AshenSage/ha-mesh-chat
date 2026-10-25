@@ -6,7 +6,7 @@ Question: does the exact external bootloader select the requested runtime from O
 
 Future, separately authorised manual bench procedure (do not use the lab worker):
 
-1. Preserve both manual runtime/slot attestations (generic descriptors alone are insufficient), verify the reference allowlist, preserve original flash, record the written bootloader readback hash, and configure both test identities. Identify the physical board and both runtimes independently.
+1. Independently identify both manually booted USB runtimes with external tools (keep the lab stopped; no lab registry/attestation prerequisite), observe the real R2 PSRAM cap, verify the reference allowlist, preserve original flash, record the written bootloader readback hash, and configure both test identities. Identify the physical board and both runtimes independently.
 2. Stop the HA app and all serial owners. Read the actual table and both OTA sectors with external esptool; archive these private files and `nvs_sel`. Check CRC/state and select the inactive OTA copy. Retain the other valid sector.
 3. Prepare and independently inspect a single-sector OTA selection update with the ESP-IDF-compatible sequence and CRC. Have a second person/tool verify address, size, target slot and preserved recovery copy. Do not erase the whole OTA partition or profile data.
 4. In a separately authorised physical test, write that sector with esptool, reset, and observe the actual USB runtime/identity independently. Do not run the lab controller. Record whether a selector screen, button or other mechanism intervened.
