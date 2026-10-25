@@ -1,0 +1,94 @@
+[
+  {
+    "path": "examples/companion_radio/DataStore.cpp",
+    "text": "return LittleFS.format();"
+  },
+  {
+    "path": "examples/companion_radio/main.cpp",
+    "text": "LittleFS.begin();"
+  },
+  {
+    "path": "examples/companion_radio/main.cpp",
+    "text": "SPIFFS.begin(true);"
+  },
+  {
+    "path": "examples/kiss_modem/main.cpp",
+    "text": "SPIFFS.begin(true);"
+  },
+  {
+    "path": "examples/kiss_modem/main.cpp",
+    "text": "LittleFS.begin();"
+  },
+  {
+    "path": "examples/simple_repeater/MyMesh.cpp",
+    "text": "return InternalFS.format();"
+  },
+  {
+    "path": "examples/simple_repeater/MyMesh.cpp",
+    "text": "return LittleFS.format();"
+  },
+  {
+    "path": "examples/simple_repeater/MyMesh.cpp",
+    "text": "return SPIFFS.format();"
+  },
+  {
+    "path": "examples/simple_repeater/main.cpp",
+    "text": "SPIFFS.begin(true);"
+  },
+  {
+    "path": "examples/simple_repeater/main.cpp",
+    "text": "LittleFS.begin();"
+  },
+  {
+    "path": "examples/simple_room_server/MyMesh.cpp",
+    "text": "return InternalFS.format();"
+  },
+  {
+    "path": "examples/simple_room_server/MyMesh.cpp",
+    "text": "return LittleFS.format();"
+  },
+  {
+    "path": "examples/simple_room_server/MyMesh.cpp",
+    "text": "return SPIFFS.format();"
+  },
+  {
+    "path": "examples/simple_room_server/main.cpp",
+    "text": "LittleFS.begin();"
+  },
+  {
+    "path": "examples/simple_room_server/main.cpp",
+    "text": "SPIFFS.begin(true);"
+  },
+  {
+    "path": "examples/simple_secure_chat/main.cpp",
+    "text": "LittleFS.begin();"
+  },
+  {
+    "path": "examples/simple_secure_chat/main.cpp",
+    "text": "SPIFFS.begin(true);"
+  },
+  {
+    "path": "examples/simple_sensor/SensorMesh.cpp",
+    "text": "return InternalFS.format();"
+  },
+  {
+    "path": "examples/simple_sensor/SensorMesh.cpp",
+    "text": "return LittleFS.format();"
+  },
+  {
+    "path": "examples/simple_sensor/SensorMesh.cpp",
+    "text": "return SPIFFS.format();"
+  },
+  {
+    "path": "examples/simple_sensor/main.cpp",
+    "text": "SPIFFS.begin(true);"
+  },
+  {
+    "path": "examples/simple_sensor/main.cpp",
+    "text": "LittleFS.begin();"
+  },
+  {
+    "path": "examples/companion_radio/main.cpp",
+    "text": "SPIFFS.begin(true, \"/spiffs\", 10, \"mc_spiffs\");"
+  }
+]

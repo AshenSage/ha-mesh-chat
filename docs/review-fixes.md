@@ -73,3 +73,9 @@ Executed: `python -m pytest -q` — 48 passed in 0.58s; `git diff --check` passe
 Rechecked both probe functions and pinned protocol/library channel APIs. MeshCore reads explicit bounded capacity, every channel and contacts; Meshtastic requires completed local channels. Hash inputs include index/name/PSK digest and role, without returning raw keys. Missing/incomplete reads block verification. Tests mutate PSK/remove channels and check no raw secret appears. Probe budgets increased to 300 seconds for bounded 64-channel reads. Old baseline migration is explicit, not silently overwritten.
 
 Executed: `python -m pytest -q` — 50 passed in 0.56s; `git diff --check` passed. No device operations.
+
+## C1 — prepare firmware using an atomic checked versioned patch and filesystem audit
+
+Rechecked prepare_meshcore_usb.py full current string replacement path. Replaced global ini mutation with a versioned patch that changes only the USB environment, preserving other environments. Exact original/prepared file hashes, repo-wide filesystem-call allowlist, git apply --check, idempotence and --reset prevent partial/unknown edits. Missing/changed/last-section input gets an explicit refusal rather than ValueError. Build checks mc_spiffs in the image and records PlatformIO/platform/timestamps/build-log hash. Synthetic git tests cover prepare/reset, unexpected calls and changed layout; no source build or device action executed in this point.
+
+Executed: `python -m pytest -q` — 53 passed in 0.61s; `git diff --check` passed. No device operations.
