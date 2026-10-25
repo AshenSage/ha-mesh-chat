@@ -231,3 +231,50 @@ def test_direct_access_is_denied(tmp_path, monkeypatch):
             response = await client.get("/api/status")
             assert response.status == 403
     asyncio.run(scenario())
+
+
+def test_meshtastic_runtime_requires_public_key_and_closes_transport(monkeypatch):
+    import base64
+    from types import SimpleNamespace
+    from meshtastic.protobuf import config_pb2
+    import meshtastic.serial_interface
+    from lab.worker import probe_meshtastic
+    user = {"id": "!12345678", "longName": "Lab", "shortName": "LAB",
+            "publicKey": base64.b64encode(b"k" * 32).decode()}
+    closed = []
+    interface = SimpleNamespace(getMyNodeInfo=lambda: {"user": user},
+                myInfo=SimpleNamespace(my_node_num=0x12345678),
+                metadata=SimpleNamespace(firmware_version="test-build"),
+                localNode=SimpleNamespace(localConfig=SimpleNamespace(lora=config_pb2.Config.LoRaConfig())),
+                close=lambda: closed.append(True))
+    monkeypatch.setattr(meshtastic.serial_interface, "SerialInterface", lambda **_: interface)
+    result = probe_meshtastic("fake")
+    assert result["network"] == "meshtastic"
+    assert len(result["identity_sha256"]) == 64
+    assert closed == [True]
+    user.pop("publicKey")
+    with pytest.raises(LabError, match="node ID alone"):
+        probe_meshtastic("fake")
+    assert closed == [True, True]
+
+
+def test_meshcore_runtime_requires_self_info_and_closes_transport(monkeypatch):
+    from types import SimpleNamespace
+    from meshcore import MeshCore, EventType
+    from lab.worker import probe_meshcore
+    closed = []
+    event = SimpleNamespace(type=EventType.SELF_INFO, payload={"public_key": "ab" * 32, "name": "Lab"})
+    async def appstart():
+        return event
+    async def disconnect():
+        closed.append(True)
+    async def connect(*_, **__):
+        return SimpleNamespace(commands=SimpleNamespace(send_appstart=appstart), disconnect=disconnect)
+    monkeypatch.setattr(MeshCore, "create_serial", connect)
+    result = asyncio.run(probe_meshcore("fake"))
+    assert result["network"] == "meshcore"
+    assert closed == [True]
+    event.type = EventType.ERROR
+    with pytest.raises(LabError, match="SELF_INFO"):
+        asyncio.run(probe_meshcore("fake"))
+    assert closed == [True, True]

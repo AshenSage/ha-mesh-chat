@@ -6,6 +6,7 @@ Only boot-selection sectors can be written; provisioning is deliberately separat
 
 import argparse
 import asyncio
+import base64
 import contextlib
 import io
 import json
@@ -173,7 +174,14 @@ def probe_meshtastic(port):
         number = interface.myInfo.my_node_num if interface.myInfo else 0
         if not number or not user.get("id") or not interface.metadata:
             raise LabError("No complete Meshtastic USB identity/metadata response")
-        identity = {"node": number, "id": user["id"], "publicKey": user.get("publicKey", "")}
+        public = user.get("publicKey", "")
+        try:
+            public_bytes = base64.b64decode(public, validate=True)
+        except (ValueError, TypeError) as exc:
+            raise LabError("Meshtastic returned no usable public key") from exc
+        if len(public_bytes) != 32 or not any(public_bytes):
+            raise LabError("Meshtastic returned no usable public key; node ID alone is insufficient")
+        identity = {"node": number, "id": user["id"], "publicKey": public}
         stable = {"longName": user.get("longName"), "shortName": user.get("shortName"),
                   "lora": MessageToDict(interface.localNode.localConfig.lora)}
         return {"network": "meshtastic", "identity_sha256": digest(json.dumps(identity, sort_keys=True).encode()),
