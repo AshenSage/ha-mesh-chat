@@ -32,6 +32,11 @@ def prepare(source):
     section = f"[env:{ENVIRONMENT}]\n"
     if content.count(section) != 1:
         raise SystemExit("USB build environment changed")
+    # This bench proof does not use external environmental sensors or GPS.
+    for optional in ("  ${sensor_base.build_flags}\n", "  ${sensor_base.lib_deps}\n", "  -D ENV_INCLUDE_GPS=1\n"):
+        if content.count(optional) != 1:
+            raise SystemExit("Optional sensor configuration changed; review the lab build")
+        content = content.replace(optional, "")
     main.write_text(text.replace("SPIFFS.begin(true);", 'SPIFFS.begin(true, "/spiffs", 10, "mc_spiffs");'))
     content = content.replace(section, section + "board_build.partitions = partitions_mesh_chat_lab.csv\n"
                               "board_upload.maximum_size = 4587520\n")
@@ -61,7 +66,8 @@ def main():
         metadata = {"source": "https://github.com/meshcore-dev/MeshCore", "commit": MESHCORE_REF,
                     "environment": ENVIRONMENT, "sha256": hashlib.sha256(image).hexdigest(),
                     "size": len(image), "flash_offset": "0x220000", "hardware_validated": False,
-                    "patches": ["isolated mc_spiffs mount", "lab partition table", "USB companion"]}
+                    "patches": ["isolated mc_spiffs mount", "lab partition table", "USB companion",
+                                "external sensors/GPS omitted for bench proof"]}
         (args.output / "meshcore-build.json").write_text(json.dumps(metadata, indent=2) + "\n")
     print("Prepared experimental USB source. Hardware validation remains pending.")
 

@@ -34,13 +34,13 @@ Reference reviewed: `tkh1000/Meshtastic-Meshcore-Dualboot-Heltec-V4-` at commit 
 Prepare the MeshCore source on a development computer (or use the manually triggered GitHub workflow **Build experimental MeshCore USB app**):
 
 ```sh
-python -m pip install platformio==6.1.18
+python -m pip install platformio==6.1.18 esptool==4.11.0
 git clone https://github.com/meshcore-dev/MeshCore.git firmware-work/MeshCore
 git -C firmware-work/MeshCore checkout 81dbae592ffad40b4212bc0b37e82b38da08f4bc
 python tools/prepare_meshcore_usb.py firmware-work/MeshCore --build
 ```
 
-The script requires a clean pinned checkout, patches the SPIFFS mount to `mc_spiffs`, applies the lab partition table to `heltec_v4_companion_radio_usb`, and records the resulting binary hash. It never flashes a device. Compilation and complete bundle compatibility still require evidence; failures must be resolved before provisioning. The source commit is fixed, but upstream transitive PlatformIO libraries are not fully locked yet; archive the actual build log and binary hashes used for each hardware test.
+The script requires a clean pinned checkout, patches the SPIFFS mount to `mc_spiffs`, applies the lab partition table to `heltec_v4_companion_radio_usb`, omits optional external sensor/GPS support for this bench proof, and records the resulting binary hash. It never flashes a device. Compilation and complete bundle compatibility still require evidence; failures must be resolved before provisioning. The source commit is fixed, but upstream transitive PlatformIO libraries are not fully locked yet; archive the actual build log and binary hashes used for each hardware test.
 
 For a first bench installation, use the reference checkout at the pinned commit above, its prebuilt bootloader/table/OTA/selector and Meshtastic app, and the generated `meshcore-usb-lab.bin` instead of its BLE app. Before any first installation:
 
