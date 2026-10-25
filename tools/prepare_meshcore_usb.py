@@ -24,7 +24,9 @@ ROOT = Path(__file__).resolve().parents[1]
 PATCH = ROOT / "firmware/meshcore-usb-lab.patch"
 FILES = ROOT / "firmware/meshcore-source-files.json"
 AUDIT = ROOT / "firmware/meshcore-filesystem-allowlist.json"
-FS_CALL = re.compile(r"(?:SPIFFS|LittleFS)\s*\.\s*begin\s*\(|\.\s*format\s*\(")
+FS_CALL = re.compile(r"(?:SPIFFS|LittleFS)\s*\.\s*begin\s*\(|\.\s*format\s*\("
+                     r"|\bnvs_flash_erase(?:_partition)?\s*\(|\besp_partition_(?:erase\w*|write\w*)\s*\("
+                     r"|\besp_vfs_\w*_register\s*\(|\besp_(?:spiffs|littlefs)_format\s*\(")
 
 
 def audit_filesystems(source):

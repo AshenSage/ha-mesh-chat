@@ -90,5 +90,10 @@
   {
     "path": "examples/companion_radio/main.cpp",
     "text": "SPIFFS.begin(true, \"/spiffs\", 10, \"mc_spiffs\");"
+  },
+  {
+    "path": "examples/companion_radio/DataStore.cpp",
+    "text": "esp_err_t nvs_err = nvs_flash_erase(); // no need to reinit, will be done by reboot",
+    "decision": "Known shared-nvs erase used by factory reset and CLI erase. Retained upstream behaviour; forbidden during lab persistence experiments. This allowlist is visibility, not isolation or hardware validation."
   }
 ]

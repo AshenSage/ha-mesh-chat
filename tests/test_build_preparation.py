@@ -62,3 +62,15 @@ def test_c1_changed_or_last_section_layout_is_an_explicit_error(checkout):
     with pytest.raises(SystemExit, match="Unsupported/partially modified source or section layout"):
         builder.prepare(source)
     assert path.read_text() == changed
+
+
+@pytest.mark.parametrize("call", ["nvs_flash_erase();", 'nvs_flash_erase_partition("nvs");',
+    "esp_partition_erase_range(p, 0, size);", "esp_partition_write(p, 0, bytes, size);",
+    "esp_vfs_spiffs_register(&config);", "esp_spiffs_format(label);", "esp_littlefs_format(label);"])
+def test_r2_4_shared_storage_calls_require_explicit_audit_entry(checkout, call):
+    source, _, _, _ = checkout
+    extra = source / "unsafe.cpp"
+    extra.write_text(call + "\n")
+    subprocess.run(["git", "add", "unsafe.cpp"], cwd=source, check=True)
+    with pytest.raises(SystemExit, match="Unreviewed filesystem call"):
+        builder.audit_filesystems(source)
