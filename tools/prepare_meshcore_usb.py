@@ -37,6 +37,17 @@ def prepare(source):
         if content.count(optional) != 1:
             raise SystemExit("Optional sensor configuration changed; review the lab build")
         content = content.replace(optional, "")
+    prefix, usb_tail = content.split(section)
+    usb_block, following = usb_tail.split("\n[", 1)
+    # Build a headless image: no OLED UI or its display libraries in this
+    # lab image. Preserve the board pin definitions inherited from oled base.
+    for optional in ("  -I examples/companion_radio/ui-new\n", "  -D DISPLAY_CLASS=SSD1306Display\n",
+                     "  +<helpers/ui/SSD1306Display.cpp>\n", "  +<helpers/ui/MomentaryButton.cpp>\n",
+                     "  +<../examples/companion_radio/ui-new/*.cpp>\n"):
+        if usb_block.count(optional) != 1:
+            raise SystemExit("USB display configuration changed; review the headless lab build")
+        usb_block = usb_block.replace(optional, "")
+    content = prefix + section + usb_block + "\n[" + following
     main.write_text(text.replace("SPIFFS.begin(true);", 'SPIFFS.begin(true, "/spiffs", 10, "mc_spiffs");'))
     content = content.replace(section, section + "board_build.partitions = partitions_mesh_chat_lab.csv\n"
                               "board_upload.maximum_size = 4587520\n")
@@ -61,13 +72,15 @@ def main():
             raise SystemExit("Unexpected or oversized app image")
         args.output.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(binary, args.output / "meshcore-usb-lab.bin")
-        for license_path in source.glob("LICENSE*"):
+        for license_path in source.iterdir():
+            if not license_path.is_file() or not license_path.name.lower().startswith(("license", "licence")):
+                continue
             shutil.copyfile(license_path, args.output / ("MeshCore-" + license_path.name))
         metadata = {"source": "https://github.com/meshcore-dev/MeshCore", "commit": MESHCORE_REF,
                     "environment": ENVIRONMENT, "sha256": hashlib.sha256(image).hexdigest(),
                     "size": len(image), "flash_offset": "0x220000", "hardware_validated": False,
                     "patches": ["isolated mc_spiffs mount", "lab partition table", "USB companion",
-                                "external sensors/GPS omitted for bench proof"]}
+                                "headless: OLED UI omitted", "external sensors/GPS omitted for bench proof"]}
         (args.output / "meshcore-build.json").write_text(json.dumps(metadata, indent=2) + "\n")
     print("Prepared experimental USB source. Hardware validation remains pending.")
 

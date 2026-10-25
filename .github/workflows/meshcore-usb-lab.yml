@@ -1,5 +1,11 @@
 name: Build experimental MeshCore USB app
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - tools/prepare_meshcore_usb.py
+      - firmware/**
+      - .github/workflows/meshcore-usb-lab.yml
 jobs:
   build:
     runs-on: ubuntu-latest
