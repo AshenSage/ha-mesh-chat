@@ -189,3 +189,9 @@ Executed: `python -m pytest -q` — 99 passed in 2.12s; `git diff --check` passe
 Rechecked actual git ls-files and extension filter in audit_filesystems. Function contract and operator/durability docs now enumerate excluded .pio dependencies/frameworks/generated code/extensions and hidden wrappers. No claim of transitive or whole-program isolation. Documentation-only clarification; retained all existing audit tests, added no implementation-mirroring test. Exact commands: ../mesh-lab-venv/bin/python -m pytest -q; git diff --check. No compile/device operations.
 
 Executed: `python -m pytest -q` — 99 passed in 1.97s; `git diff --check` passed. No device operations.
+
+## R2-P3-5 — set explicit bounded MeshCore contact enumeration timeout
+
+Rechecked pinned meshcore 2.2.5 contact.py signature get_contacts(lastmod=0, timeout=5) and current probe call. Added explicit timeout=120 seconds; fake probes assert the keyword value and missing completion still raises LabError. Exact commands: local source inspection (initial guessed MessagingCommands/contacts module lookups failed; actual ContactCommands in contact.py found by rg), ../mesh-lab-venv/bin/python -m pytest -q; git diff --check. No real protocol query, contacts transfer, device/reset/reboot or flash operation.
+
+Executed: `python -m pytest -q` — 99 passed in 1.21s; `git diff --check` passed. No device operations.

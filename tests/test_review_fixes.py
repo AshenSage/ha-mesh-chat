@@ -299,8 +299,9 @@ def test_b7_meshcore_contacts_and_channel_keys_are_checked(monkeypatch):
     async def channel(index):
         return SimpleNamespace(type=EventType.CHANNEL_INFO, payload={"channel_idx": index,
             "channel_name": "lab", "channel_secret": state["secret"]})
-    async def contacts():
-        return SimpleNamespace(type=EventType.CONTACTS, payload=state["contacts"])
+    async def contacts(*, timeout):
+        assert timeout == worker.CONTACTS_TIMEOUT
+        return None if state.get("timeout") else SimpleNamespace(type=EventType.CONTACTS, payload=state["contacts"])
     async def close():
         pass
     async def connect(*_, **__):
@@ -317,6 +318,9 @@ def test_b7_meshcore_contacts_and_channel_keys_are_checked(monkeypatch):
     third = asyncio.run(worker.probe_meshcore("fake"))
     with pytest.raises(LabError, match="channels_sha256"):
         worker.compare_profile(third, second)
+    state["timeout"] = True
+    with pytest.raises(LabError, match="Incomplete MeshCore contact read"):
+        asyncio.run(worker.probe_meshcore("fake"))
 
 
 def test_c3_fixed_crc_reference_zero_refusal_and_no_rollback_state():

@@ -230,6 +230,9 @@ def require_slot_attestations(current, registry):
             raise LabError(f"Missing or changed slot attestation ({network}); manually boot and capture both baselines")
 
 
+CONTACTS_TIMEOUT = 120
+
+
 async def probe_meshcore(port):
     from meshcore import MeshCore, EventType
     mc = await MeshCore.create_serial(port, default_timeout=4, auto_reconnect=False)
@@ -257,7 +260,7 @@ async def probe_meshcore(port):
             if not isinstance(secret, bytes) or len(secret) != 16:
                 raise LabError("MeshCore channel key cannot be fingerprinted")
             channels.append({"index": index, "name": channel.payload.get("channel_name", ""), "psk_sha256": digest(secret)})
-        contacts = await mc.commands.get_contacts()
+        contacts = await mc.commands.get_contacts(timeout=CONTACTS_TIMEOUT)
         if contacts is None or contacts.type != EventType.CONTACTS or not isinstance(contacts.payload, dict):
             raise LabError("Incomplete MeshCore contact read")
         peers = sorted([{k: peer.get(k) for k in ("public_key", "adv_name", "type", "flags")}

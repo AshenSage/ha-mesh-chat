@@ -296,7 +296,8 @@ def test_meshcore_runtime_requires_self_info_and_closes_transport(monkeypatch):
         async def channel(index):
             return SimpleNamespace(type=EventType.CHANNEL_INFO, payload={"channel_idx": index,
                                    "channel_name": "test", "channel_secret": b"x" * 16})
-        async def contacts():
+        async def contacts(*, timeout):
+            assert timeout == 120
             return SimpleNamespace(type=EventType.CONTACTS, payload={})
         return SimpleNamespace(commands=SimpleNamespace(send_appstart=appstart, send_device_query=query,
                                get_channel=channel, get_contacts=contacts), disconnect=disconnect)

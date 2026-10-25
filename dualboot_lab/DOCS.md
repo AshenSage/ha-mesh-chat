@@ -153,3 +153,6 @@ Container base is pinned to the Docker Official Images Python 3.12 slim-bookworm
 
 
 The storage audit covers git-tracked MeshCore `.c/.cpp/.h/.ino` sources only. `.pio` libraries, the installed framework, generated code and indirect wrappers are outside that check. See the [durability investigation](../docs/quiesce-investigation.md); passing the allowlist is not proof of whole-program storage isolation.
+
+
+MeshCore contact enumeration explicitly requests `timeout=120` seconds (pinned `ContactCommands.get_contacts` supports this keyword), rather than relying on the short command default. A missing/incomplete final CONTACTS response still fails closed; the parent phase timeout remains an additional bound. Timing with up to 350 actual contacts is NOT RUN.
