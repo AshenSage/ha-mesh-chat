@@ -20,6 +20,7 @@ def profile(network):
 @pytest.fixture
 def setup_run(tmp_path, monkeypatch):
     info = {"mac": "mac", "flash_size": 0x1000000, "table_sha256": "table",
+            "bootloader_md5": "boot", "selector_nvs_md5": "selector",
             "app_md5": {"ota_0": "mc", "ota_1": "mt"}, "selected_slot": 0}
     backup = tmp_path / "backup.bin"
     backup.write_bytes(b"snapshot")
@@ -69,7 +70,7 @@ def test_b1_backup_failure_prevents_select(setup_run, damage):
     assert not s.calls and not s.entered
 
 
-@pytest.mark.parametrize("key", ["mac", "table_sha256", "app_md5"])
+@pytest.mark.parametrize("key", ["mac", "table_sha256", "app_md5", "bootloader_md5", "selector_nvs_md5"])
 def test_b1_changed_device_blocks_select(setup_run, key):
     s = setup_run
     s.info[key] = "changed"

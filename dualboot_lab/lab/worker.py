@@ -139,6 +139,8 @@ class Radio:
             return {**result, "layout_supported": False, "reason": str(exc)}
         selection = self.esp.read_flash(0x1C000, 2 * SECTOR)
         result.update(layout_supported=True, selected_slot=selected_slot(selection),
+                      bootloader_md5=self.esp.flash_md5sum(0, TABLE_OFFSET),
+                      selector_nvs_md5=self.esp.flash_md5sum(*next((r[3], r[4]) for r in EXPECTED if r[0] == "nvs_sel")),
                       app_md5={name: self.esp.flash_md5sum(address, size)
                                for name, kind, _, address, size in EXPECTED if kind == 0})
         return result
@@ -179,7 +181,7 @@ class Radio:
 
 
 def require_same_device(current, registry):
-    for key in ("mac", "flash_size", "table_sha256", "app_md5"):
+    for key in ("mac", "flash_size", "table_sha256", "app_md5", "bootloader_md5", "selector_nvs_md5"):
         if current.get(key) != registry.get(key):
             raise LabError(f"Device/layout/build changed ({key}); keep old backup and re-enrol deliberately")
 

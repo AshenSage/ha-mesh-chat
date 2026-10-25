@@ -42,6 +42,7 @@ All rows start **NOT RUN**. Do not infer a hardware pass from software tests, st
 | Graceful quiesce candidate | Independently verify protocol reboot/flush behaviour, completion evidence and subsequent ROM entry for each exact build; do not infer filesystem durability from command existence | NOT RUN |
 | USB interruption | Interrupt a bench attempt; report fails/interrupts, no blind retries; device can be inspected/recovered | NOT RUN |
 | Bad layout/device | Unsupported layout, wrong flash size, changed MAC/build and damaged snapshot block writes | NOT RUN |
+| Shared NVS namespace comparison | Read private 0x9000..0x19000 NVS dumps before/after BOTH directions; decode using a pinned offline NVS parser, compare namespaces/key names/types and value hashes. Explain legitimate firmware writes vs cross-firmware changes. Keep values/raw dumps private and record decoder version | NOT RUN |
 | Recovery | Restore the CURRENT post-baseline snapshot to a second matching board with the original unavailable; verify both original identities, channel keys and profiles without regenerating keys; retain the original pre-installation dump too | NOT RUN |
 
 These are proposed engineering acceptance counts for this lab milestone, not claims of a statistically proven failure rate. If a test cannot be performed (e.g. no second host yet), keep it pending and state the narrower evidence.

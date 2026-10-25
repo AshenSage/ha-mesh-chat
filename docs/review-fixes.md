@@ -61,3 +61,9 @@ Executed: `python -m pytest -q` — 45 passed in 0.56s; `git diff --check` passe
 Rechecked source patch line 51, proof matrix and pinned MeshCore CMD_REBOOT/ESP32Board source plus both Python reboot APIs. Added profile-write power-cut and quiesce acceptance rows. API-availability test executes no commands. Source inspection finds a MeshCore dirty-contact save before esp_restart, but does not prove a full durable barrier. Format-on-fail risk and real power-cut/quiesce tests remain explicit blockers, NOT RUN; no new reboot automation was enabled.
 
 Executed: `python -m pytest -q` — 46 passed in 0.56s; `git diff --check` passed. No device operations.
+
+## B5 — bind bootloader and selector NVS fingerprints to the registry
+
+Rechecked current inspect and require_same_device. Added bootloader 0..0x8000 and table-derived nvs_sel MD5 observations/comparison. Full run tests now reject either changed fingerprint before select. Shared NVS is not falsely required to remain byte-identical: added a private, read-only namespace/type/value-hash comparison procedure for both directions, decoder provenance and investigation of legitimate writes. This physical comparison remains NOT RUN.
+
+Executed: `python -m pytest -q` — 48 passed in 0.58s; `git diff --check` passed. No device operations.
