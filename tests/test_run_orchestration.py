@@ -76,7 +76,7 @@ def test_b1_backup_failure_prevents_select(setup_run, damage):
     assert not s.calls and not s.entered
 
 
-@pytest.mark.parametrize("key", ["mac", "table_sha256", "app_md5", "bootloader_md5", "selector_nvs_md5"])
+@pytest.mark.parametrize("key", ["mac", "table_sha256", "app_md5", "bootloader_md5"])
 def test_b1_changed_device_blocks_select(setup_run, key):
     s = setup_run
     s.info[key] = "changed"
@@ -272,3 +272,21 @@ def test_r2_3_snapshot_happens_only_after_matching_live_probe(setup_run, monkeyp
     result = s.run(action="resnapshot")
     assert result["live_profile_verified"] == "meshcore" and calls == ["snapshot"]
     assert len(s.entered) == 2 and not s.calls
+
+
+
+def test_r2_9_selector_nvs_drift_is_visible_warning_without_blocking(setup_run, monkeypatch):
+    from lab import diagnostics
+    from lab.server import Lab
+    s = setup_run
+    events = []
+    monkeypatch.setattr(diagnostics, "SINK", events.append)
+    s.info["selector_nvs_md5"] = "normal boot may change this"
+    assert s.run()["status"] == "switch_verified"
+    warnings = [e for e in events if e.get("type") == "warning"]
+    assert warnings == [{"type": "warning", "code": "selector_nvs_changed_unvalidated"}]
+    lab = Lab(s.data)
+    lab.active_run = {"status": "running"}
+    lab.state["runs"].append(lab.active_run)
+    lab.record_phase(warnings[0], "switch")
+    assert lab.active_run["warnings"][0]["code"] == "selector_nvs_changed_unvalidated"

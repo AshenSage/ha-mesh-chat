@@ -13,7 +13,7 @@ from aiohttp import web
 
 from .layout import LabError, NETWORKS
 from .worker import save_json, require_closed_journal, ACK_REASONS
-from .diagnostics import PHASES, PHASE_TIMEOUTS
+from .diagnostics import PHASES, PHASE_TIMEOUTS, WARNINGS
 
 DATA = Path(os.environ.get("LAB_DATA", "/data"))
 LOCAL = os.environ.get("LAB_LOCAL") == "1"
@@ -80,6 +80,11 @@ class Lab:
         save_json(self.path, self.state)
 
     def record_phase(self, event, action):
+        if event.get("type") == "warning" and event.get("code") in WARNINGS and self.active_run is not None:
+            warnings = self.active_run.setdefault("warnings", [])
+            if not any(w["code"] == event["code"] and w["action"] == action for w in warnings):
+                warnings.append({"time": now(), "action": action, "code": event["code"]})
+                self.persist()
         if event.get("type") == "phase" and event.get("phase") in PHASES and self.active_run is not None:
             self.active_run["last_phase"] = event["phase"]
             self.active_run.setdefault("phase_events", []).append({"time": now(), "action": action,
@@ -137,6 +142,8 @@ class Lab:
                 event = json.loads(line)
                 if event.get("type") == "phase" and event.get("phase") in PHASES:
                     deadline = time.monotonic() + PHASE_TIMEOUTS[event["phase"]]
+                    self.record_phase(event, action)
+                elif event.get("type") == "warning":
                     self.record_phase(event, action)
                 elif event.get("type") == "result":
                     result = event

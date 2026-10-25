@@ -213,9 +213,12 @@ class Radio:
 
 
 def require_same_device(current, registry):
-    for key in ("mac", "flash_size", "table_sha256", "app_md5", "bootloader_md5", "selector_nvs_md5"):
+    for key in ("mac", "flash_size", "table_sha256", "app_md5", "bootloader_md5"):
         if current.get(key) != registry.get(key):
             raise LabError(f"Device/layout/build changed ({key}); keep old backup and re-enrol deliberately")
+
+    if current.get("selector_nvs_md5") != registry.get("selector_nvs_md5"):
+        diagnostics.warning("selector_nvs_changed_unvalidated")
 
 
 def require_slot_attestations(current, registry):

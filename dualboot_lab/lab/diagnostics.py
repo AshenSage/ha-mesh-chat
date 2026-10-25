@@ -21,6 +21,16 @@ def phase(name):
         SINK({"type": "phase", "phase": name})
 
 
+WARNINGS = {"selector_nvs_changed_unvalidated"}
+
+
+def warning(code):
+    if code not in WARNINGS:
+        raise ValueError("Unknown warning")
+    if SINK is not None:
+        SINK({"type": "warning", "code": code})
+
+
 def log_exception(data, exc):
     # No traceback, exception payload, protocol buffer or arbitrary message.
     # Keep known esptool failure categories useful without copying packet data.

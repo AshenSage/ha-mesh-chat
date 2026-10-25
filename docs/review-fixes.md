@@ -159,3 +159,9 @@ Executed: `python -m pytest -q` — 95 passed in 1.08s; `git diff --check` passe
 Rechecked current TERMINATION_GRACE/config/web.run_app and official Home Assistant configuration reference: timeout is a supported integer (10–300, default 10). Set timeout:30, keep 15-second worker grace and explicitly bound HTTP request shutdown at 2 seconds. Static policy test verifies at least 10 seconds margin. Actual stop-during-write and running-board latency added as NOT RUN; standalone Docker needs the equivalent timeout. Executed official docs lookup, ../mesh-lab-venv/bin/python -m pytest -q and git diff --check. No actual container/add-on stop, device, flash, reset or reboot.
 
 Executed: `python -m pytest -q` — 96 passed in 1.43s; `git diff --check` passed. No device operations.
+
+## R2-9 — report selector NVS drift as warning pending normal-boot evidence
+
+Rechecked require_same_device, selector hash collection and parent progress handling. Removed only selector_nvs_md5 from hard binding; a fixed allowlisted warning code is emitted and retained in the report. MAC/layout/apps/bootloader remain hard gates. Added A5 read-only MD5 sequence across repeated normal boots of both firmwares and selector entry/exit, NOT RUN. Test exercises a successful fake switch with warning and persisted parent warning. Exact commands: ../mesh-lab-venv/bin/python -m pytest -q; git diff --check. No actual normal boots, NVS reads, USB, flash/reset/reboot operations.
+
+Executed: `python -m pytest -q` — 96 passed in 2.04s; `git diff --check` passed. No device operations.

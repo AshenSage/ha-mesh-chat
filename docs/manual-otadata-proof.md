@@ -6,7 +6,7 @@ Question: does the exact external bootloader select the requested runtime from O
 
 Future, separately authorised manual bench procedure (do not use the lab worker):
 
-1. Resolve A2's generic descriptors, verify the reference allowlist, preserve original flash, record the written bootloader readback hash, and configure both test identities. Identify the physical board and both runtimes independently.
+1. Preserve both manual runtime/slot attestations (generic descriptors alone are insufficient), verify the reference allowlist, preserve original flash, record the written bootloader readback hash, and configure both test identities. Identify the physical board and both runtimes independently.
 2. Stop the HA app and all serial owners. Read the actual table and both OTA sectors with external esptool; archive these private files and `nvs_sel`. Check CRC/state and select the inactive OTA copy. Retain the other valid sector.
 3. Prepare and independently inspect a single-sector OTA selection update with the ESP-IDF-compatible sequence and CRC. Have a second person/tool verify address, size, target slot and preserved recovery copy. Do not erase the whole OTA partition or profile data.
 4. In a separately authorised physical test, write that sector with esptool, reset, and observe the actual USB runtime/identity independently. Do not run the lab controller. Record whether a selector screen, button or other mechanism intervened.
@@ -16,3 +16,6 @@ Future, separately authorised manual bench procedure (do not use the lab worker)
 Record: date/operator, exact hardware, host/USB mapping, all source/written component hashes, OTA old/new sequence/state/CRC and sector address, selector NVS hash, actual firmware response in both directions, identity fingerprints, button use, power-cycle results and private evidence location. Do not publish raw flash, namespace contents or keys.
 
 No result is recorded yet. When the operator supplies evidence, add a dated result referencing immutable builds and actual observations. A checkbox, unit test, compilation or this procedure cannot mark the hypothesis hardware-validated.
+
+
+R2-9 stability subtest — NOT RUN: before testing OTA writes, read nvs_sel MD5 before and after several ordinary boots of EACH manually selected firmware and after entering/leaving the selector. Record app hashes, boot source/sequence, normal versus selector-assisted boot, MD5 sequence and any changes; reads must not write NVS. Until this proves normal-boot stability, selector_nvs_md5 remains an observed warning field, never a hard device-binding gate. Every warning is retained in the lab report; table, MAC, app and bootloader checks remain strict. Meshtastic shared-NVS use remains unknown.

@@ -141,3 +141,6 @@ Shared-NVS boundary (R2-4): pinned MeshCore `examples/companion_radio/DataStore.
 
 
 Stop budget: Supervisor `timeout: 30` is explicitly configured; the documented default is 10 seconds, range 10–300 ([official configuration reference](https://contributors.home-assistant.io/apps/reference/configuration/)). Worker SIGTERM grace remains 15 seconds with 2 seconds HTTP shutdown budget. Actual add-on stop during write and time to a running board remain NOT RUN; a forced KILL never establishes successful reset. For standalone Docker tests configure the equivalent 30-second stop timeout.
+
+
+Selector NVS MD5 is observed and compared but a change currently emits `selector_nvs_changed_unvalidated`, retained in the report, rather than blocking normal boots. Whether nvs_sel is stable across both runtimes/selector is an unproved A5 assumption; record its read-only before/after MD5 over multiple normal boots. MAC/layout/app/bootloader mismatches still stop the run.
