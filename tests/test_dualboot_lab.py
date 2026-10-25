@@ -125,7 +125,7 @@ class Stub:
 
 
 def test_hardware_writer_only_modifies_inactive_ota_sector(tmp_path):
-    radio = Radio("fake")
+    radio = Radio("fake", board_confirmed=True, allow_boot_selection_write=True)
     radio.mac = "00:11"
     radio.psram_cap = 2
     radio.esp = Stub()
@@ -138,7 +138,7 @@ def test_hardware_writer_only_modifies_inactive_ota_sector(tmp_path):
 
 
 def test_storage_failure_prevents_write(tmp_path, monkeypatch):
-    radio = Radio("fake")
+    radio = Radio("fake", board_confirmed=True, allow_boot_selection_write=True)
     radio.mac = "00:11"
     radio.psram_cap = 2
     radio.esp = Stub()

@@ -36,7 +36,7 @@ def test_a1_resnapshot_requires_both_baselines(tmp_path, monkeypatch):
     worker.save_json(tmp_path / "registry.json", {"profiles": {"meshcore": {}}})
     monkeypatch.setattr(worker, "resolve_port", lambda *_: {"device": "fake"})
     with pytest.raises(LabError, match="Both profile"):
-        worker.run("resnapshot", "fake", tmp_path)
+        worker.run("resnapshot", "fake", tmp_path, board_confirmed=True)
 
 
 def test_a1_cycle_stops_before_switch_when_resnapshot_fails(tmp_path):
@@ -57,7 +57,7 @@ def test_a1_cycle_stops_before_switch_when_resnapshot_fails(tmp_path):
 @pytest.mark.parametrize("swapped,generic", [(True, False), (False, True)])
 def test_a2_swapped_or_generic_slot_projects_prevent_write(tmp_path, swapped, generic):
     from test_dualboot_lab import Stub
-    radio = worker.Radio("fake")
+    radio = worker.Radio("fake", board_confirmed=True, allow_boot_selection_write=True)
     radio.mac = "00:11"
     radio.psram_cap = 2
     stub = Stub()
@@ -89,7 +89,7 @@ def test_a3_read_only_cap_observation_and_write_gate(cap, tmp_path, monkeypatch)
             _port=SimpleNamespace(close=lambda: closed.append("close")))
     chip.run_stub = lambda: chip
     monkeypatch.setattr(esptool, "detect_chip", lambda *_, **__: chip)
-    with worker.Radio("fake") as radio:
+    with worker.Radio("fake", board_confirmed=True, allow_boot_selection_write=True) as radio:
         assert radio.psram_cap == cap
         if cap != 2:
             with pytest.raises(LabError, match="PSRAM cap 2"):
@@ -124,7 +124,7 @@ def test_b2_phase_journal_and_private_sanitized_debug(tmp_path, monkeypatch):
     from test_dualboot_lab import Stub
     events = []
     monkeypatch.setattr(diagnostics, "SINK", events.append)
-    radio = worker.Radio("fake")
+    radio = worker.Radio("fake", board_confirmed=True, allow_boot_selection_write=True)
     radio.mac, radio.psram_cap, radio.esp = "00:11", 2, Stub()
     radio.inspect = lambda: {"mac": radio.mac}
     assert radio.select("meshtastic", {"mac": radio.mac}, tmp_path)
@@ -165,3 +165,19 @@ def test_b2_parent_retains_last_phase_on_error(tmp_path, monkeypatch):
         saved = json.loads((tmp_path / "report.json").read_text())["runs"][0]
         assert saved["last_phase"] == "write"
     asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("board,allowed", [(False, False), (True, False), (False, True)])
+def test_b6_flags_are_required_in_worker_and_writer(board, allowed, tmp_path, monkeypatch):
+    from test_dualboot_lab import Stub
+    def forbidden(*_, **__):
+        pytest.fail("device resolution must not run before CLI gates")
+    monkeypatch.setattr(worker, "resolve_port", forbidden)
+    with pytest.raises(LabError, match="Explicit"):
+        worker.run("switch", "fake", tmp_path, "meshcore", board_confirmed=board,
+                   allow_boot_selection_write=allowed)
+    radio = worker.Radio("fake", board_confirmed=board, allow_boot_selection_write=allowed)
+    radio.esp, radio.psram_cap = Stub(), 2
+    with pytest.raises(LabError, match="Explicit"):
+        radio.select("meshcore", {}, tmp_path)
+    assert radio.esp.writes == []

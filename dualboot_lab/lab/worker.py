@@ -66,11 +66,13 @@ def resolve_port(configured, registry=None, wait=15):
 
 
 class Radio:
-    def __init__(self, port):
+    def __init__(self, port, *, board_confirmed=False, allow_boot_selection_write=False):
         self.port = port
         self.esp = None
         self.psram_cap = None
         self.chip_features = []
+        self.board_confirmed = board_confirmed
+        self.allow_boot_selection_write = allow_boot_selection_write
 
     def __enter__(self):
         import esptool
@@ -125,6 +127,8 @@ class Radio:
         return result
 
     def select(self, network, registry, data):
+        if self.board_confirmed is not True or self.allow_boot_selection_write is not True:
+            raise LabError("Explicit board confirmation and boot-selection write permission are required")
         if self.psram_cap != 2:
             raise LabError("Boot-selection write requires observed embedded PSRAM cap 2 (2MB)")
         current = self.inspect()
@@ -263,7 +267,11 @@ def snapshot(radio, data, registry):
     return updated
 
 
-def run(action, configured, data, network=None):
+def run(action, configured, data, network=None, *, board_confirmed=False, allow_boot_selection_write=False):
+    if action != "inspect" and board_confirmed is not True:
+        raise LabError("Explicit board confirmation is required")
+    if action == "switch" and allow_boot_selection_write is not True:
+        raise LabError("Explicit boot-selection write permission is required")
     data.mkdir(parents=True, exist_ok=True, mode=0o700)
     registry = load_registry(data) if action in ("baseline", "switch", "resnapshot") else None
     usb = resolve_port(configured, registry)
@@ -317,7 +325,8 @@ def run(action, configured, data, network=None):
         raise LabError("Capture the current firmware baseline before the first switch")
     compare_profile(before, registry["profiles"][active])
     usb = resolve_port(configured, registry)
-    with Radio(usb["device"]) as radio:
+    with Radio(usb["device"], board_confirmed=board_confirmed,
+               allow_boot_selection_write=allow_boot_selection_write) as radio:
         changed = radio.select(network, registry, data)
     # Bound the verification phase in the parent process too. No automatic
     # rollback/reflash/reboot retries if target does not answer.
@@ -348,6 +357,8 @@ def main():
     parser.add_argument("--device", default="")
     parser.add_argument("--data", default="/data")
     parser.add_argument("--network", choices=tuple(NETWORKS))
+    parser.add_argument("--board-confirmed", action="store_true")
+    parser.add_argument("--allow-boot-selection-write", action="store_true")
     args = parser.parse_args()
     output = sys.stdout
     def emit(value):
@@ -358,7 +369,8 @@ def main():
     # only the explicitly selected, non-secret evidence fields above.
     try:
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-            result = ports() if args.action == "ports" else run(args.action, args.device, Path(args.data), args.network)
+            result = ports() if args.action == "ports" else run(args.action, args.device, Path(args.data), args.network,
+                    board_confirmed=args.board_confirmed, allow_boot_selection_write=args.allow_boot_selection_write)
         emit({"type": "result", "ok": True, "result": result})
     except Exception as exc:
         diagnostics.log_exception(Path(args.data), exc)

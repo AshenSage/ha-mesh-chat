@@ -62,6 +62,10 @@ class Lab:
                    "--data", str(self.data)]
         if network:
             command.extend(["--network", network])
+        if config.get("board_confirmed") is True:
+            command.append("--board-confirmed")
+        if config.get("allow_boot_selection_write") is True:
+            command.append("--allow-boot-selection-write")
         self.process = await asyncio.create_subprocess_exec(*command, stdout=asyncio.subprocess.PIPE,
                                                             stderr=asyncio.subprocess.DEVNULL)
         timeout = 600 if action in ("enrol", "resnapshot") else 120

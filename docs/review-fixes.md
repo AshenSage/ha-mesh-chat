@@ -37,3 +37,9 @@ Executed: `python -m pytest -q` — 25 passed in 0.34s; `git diff --check` passe
 Rechecked current select journal/write/readback, worker main and parent subprocess reader. Added allowlisted inspect/probe/write/readback/reset phases, streamed and persisted by the parent; pending -> written -> verified journal transitions; and a private debug JSONL containing phase/type and safe esptool failure categories, never arbitrary exception/protocol text. Tests cover journal transitions, secret redaction and persisted parent phase on failure. Timeout cleanup is addressed separately in B3.
 
 Executed: `python -m pytest -q` — 27 passed in 0.39s; `git diff --check` passed. No device operations.
+
+## B6 — enforce explicit write permission at CLI orchestration and Radio.select
+
+Rechecked worker Radio constructor/select/run/main and parent command construction after B2. The server forwards explicit board/write CLI flags from options; direct CLI run and Radio.select both default to denial. Tests cover all missing-flag combinations and prove device resolution/write methods are not entered. Explicit flags express permission, not hardware validation.
+
+Executed: `python -m pytest -q` — 30 passed in 0.58s; `git diff --check` passed. No device operations.
