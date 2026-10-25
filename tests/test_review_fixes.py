@@ -472,3 +472,41 @@ def test_r2_3_snapshot_chain_retention_never_automatically_deletes(tmp_path, mon
     result = worker.prune_snapshots(tmp_path, "retention_reviewed")
     assert set(result["deleted"]) == set(names[1:3])
     assert all((tmp_path / name).exists() for name in (names[0], *names[-2:]))
+
+
+
+def test_r2_7_first_sigterm_inside_reset_is_deferred_until_reset_and_close_finish(monkeypatch):
+    handlers, calls = {}, []
+    monkeypatch.setattr(worker.signal, "signal", lambda n, fn: handlers.update({n: fn}))
+    worker.install_signal_handlers()
+    def reset():
+        calls.append("reset-start")
+        handlers[worker.signal.SIGTERM](None, None)
+        handlers[worker.signal.SIGTERM](None, None)
+        calls.append("reset-finished")
+    radio = worker.Radio("fake")
+    radio.esp = SimpleNamespace(hard_reset=reset, _port=SimpleNamespace(close=lambda: calls.append("close")))
+    try:
+        with pytest.raises(worker.WorkerTerminated):
+            radio.__exit__(None, None, None)
+        assert calls == ["reset-start", "reset-finished", "close"]
+        assert not worker.CLEANUP_ACTIVE and worker.TERMINATION_REQUESTED
+    finally:
+        worker.install_signal_handlers()
+
+
+def test_r2_7_sigterm_during_detect_before_ownership_has_no_fake_reset_claim(monkeypatch):
+    import esptool
+    handlers = {}
+    monkeypatch.setattr(worker.signal, "signal", lambda n, fn: handlers.update({n: fn}))
+    worker.install_signal_handlers()
+    def detect(*_, **__):
+        handlers[worker.signal.SIGTERM](None, None)
+    monkeypatch.setattr(esptool, "detect_chip", detect)
+    radio = worker.Radio("fake")
+    try:
+        with pytest.raises(worker.WorkerTerminated):
+            radio.__enter__()
+        assert radio.esp is None and not worker.CLEANUP_ACTIVE
+    finally:
+        worker.install_signal_handlers()

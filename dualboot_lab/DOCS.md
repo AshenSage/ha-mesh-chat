@@ -132,3 +132,6 @@ MeshCore fingerprint schema: radio and channels have separate hashes. Contacts a
 
 
 Resnapshot checks the currently active live profile against its baseline before reading the new full-flash image. It rechecks device/slot selection before saving; any mismatch leaves the old pointer unchanged. The inactive profile cannot be live-checked without switching; second-board restoration of the current snapshot remains NOT RUN. Recovery references are chained as `previous_backup`, with immutable `enrol_backup`. The original enrolment snapshot and latest two snapshots are protected. Older known snapshots are listed as `retention_pending` and are removed only through explicit file-only `prune_snapshots --reason retention_reviewed`. Unknown/orphan snapshots are never removed automatically; inspect storage before long experiments.
+
+
+SIGTERM sets a termination flag. Outside cleanup it unwinds the current operation; during Radio.__exit__ it is deferred until hard_reset and port close finish. Repeated TERM does not interrupt cleanup. If TERM interrupts esptool detect_chip before it returns a loader, the worker owns no loader/port and cannot guarantee cleanup: the board may remain in ROM mode and requires independent inspection. No hardware reset/USB outcome is claimed by the fake signal tests.

@@ -29,15 +29,29 @@ class WorkerTerminated(LabError):
     pass
 
 
+TERMINATION_REQUESTED = False
+TERMINATION_RAISED = False
+CLEANUP_ACTIVE = False
+
+
+def raise_termination():
+    global TERMINATION_RAISED
+    if TERMINATION_REQUESTED and not TERMINATION_RAISED and not CLEANUP_ACTIVE:
+        TERMINATION_RAISED = True
+        exc = WorkerTerminated("Worker termination requested; cleanup attempted for any owned ROM/stub session")
+        exc.lab_phase = diagnostics.LAST_PHASE
+        raise exc
+
+
 def install_signal_handlers():
-    terminating = False
+    global TERMINATION_REQUESTED, TERMINATION_RAISED
+    TERMINATION_REQUESTED = TERMINATION_RAISED = False
     def terminate(_number, _frame):
-        nonlocal terminating
-        if not terminating:
-            terminating = True
-            exc = WorkerTerminated("Worker termination requested; resetting open ROM/stub session")
-            exc.lab_phase = diagnostics.LAST_PHASE
-            raise exc
+        global TERMINATION_REQUESTED
+        TERMINATION_REQUESTED = True
+        # A first TERM during reset/close must not interrupt either operation.
+        # Repeated TERM during an existing unwind is deferred as well.
+        raise_termination()
     signal.signal(signal.SIGTERM, terminate)
 
 
@@ -124,14 +138,22 @@ class Radio:
             raise
 
     def __exit__(self, *_):
-        if self.esp is not None:
-            if len(_) > 1 and _[1] is not None:
-                _[1].lab_phase = diagnostics.LAST_PHASE
-            phase("reset")
-            try:
-                self.esp.hard_reset()
-            finally:
-                self.esp._port.close()
+        global CLEANUP_ACTIVE
+        previous_cleanup = CLEANUP_ACTIVE
+        CLEANUP_ACTIVE = True
+        try:
+            if self.esp is not None:
+                if len(_) > 1 and _[1] is not None:
+                    _[1].lab_phase = diagnostics.LAST_PHASE
+                phase("reset")
+                try:
+                    self.esp.hard_reset()
+                finally:
+                    self.esp._port.close()
+        finally:
+            CLEANUP_ACTIVE = previous_cleanup
+        if not _ or len(_) < 2 or _[1] is None:
+            raise_termination()
 
     def inspect(self, strict=True):
         phase("inspect")

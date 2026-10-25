@@ -141,3 +141,9 @@ Executed: `python -m pytest -q` — 83 passed in 6.70s; `git diff --check` passe
 Rechecked resnapshot/snapshot at current lines. Live active profile must match baseline before snapshot; a second inspect checks unchanged device/selection. Drift never snapshots or changes the registry pointer. previous_backup chains recovery metadata; enrol_backup and latest two snapshots are protected. Older snapshots are candidates only, deleted only after explicit file-only prune_snapshots --reason retention_reviewed with an audit record. Tests cover drift, ordering, five linked snapshots, no automatic deletion and protected retention. Exact commands: ../mesh-lab-venv/bin/python -m pytest -q; git diff --check. No device operations; inactive live verification and actual recovery remain NOT RUN.
 
 Executed: `python -m pytest -q` — 86 passed in 0.97s; `git diff --check` passed. No device operations.
+
+## R2-7 — defer SIGTERM through reset and port cleanup
+
+Rechecked install_signal_handlers, detect_chip ownership and Radio.__exit__. Handler always records a flag and raises only outside the cleanup section; first and repeated signals during reset/close are deferred until completion. Existing failure phase is retained. Added fake hard_reset that invokes SIGTERM twice and must finish reset/close; detection-before-ownership is tested without asserting cleanup it cannot perform. Docs explicitly state the possible ROM-mode remainder during detect_chip. Exact commands: ../mesh-lab-venv/bin/python -m pytest -q; git diff --check. No actual signal sent to device/process, USB/reset/reboot or flash operation.
+
+Executed: `python -m pytest -q` — 88 passed in 1.25s; `git diff --check` passed. No device operations.
