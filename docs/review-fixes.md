@@ -85,3 +85,9 @@ Executed: `python -m pytest -q` — 53 passed in 0.61s; `git diff --check` passe
 Rechecked Dockerfile, direct requirements, source patch and both workflows. Generated Linux Python 3.12 runtime (37), dev/build (54) and bootstrap (2) locks with exact versions and SHA-256 hashes from official PyPI release metadata. Install uses require-hashes/no-build-isolation with locked bootstrap. Platform/external libraries/toolchains are exactly pinned in USB-only patch. Resolved six action tags through GitHub and pinned their commit SHAs; workflows use contents:read and checkout persist-credentials:false. Every architecture build now executes import lab.server inside the container. Tests enforce action/lock/pin/smoke policies; actual fresh multiarch builds remain CI evidence, not HAOS/hardware evidence.
 
 Executed: `python -m pytest -q` — 57 passed in 0.68s; `git diff --check` passed. No device operations.
+
+## C3 — refuse CRC-valid sequence zero and match undefined no-rollback OTA state
+
+Rechecked current layout.py boot_entries/plan_selection. CRC-valid seq 0 now fails explicitly. New selection records write UNDEFINED 0xFFFFFFFF instead of claiming VALID=2; accepted read states and rollback refusal remain conservative. Added independent literal seq-1 CRC 0x4743989A, zero and emitted-state tests. Documented ESP-IDF no-rollback policy and required actual otatool/bootloader comparison in A5, still NOT RUN.
+
+Executed: `python -m pytest -q` — 58 passed in 0.80s; `git diff --check` passed. No device operations.

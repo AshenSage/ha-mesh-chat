@@ -104,7 +104,9 @@ def boot_entries(raw):
         seq = struct.unpack_from("<I", row)[0]
         state, crc = struct.unpack_from("<II", row, 24)
         expected_crc = binascii.crc32(row[:4], 0xFFFFFFFF) & 0xFFFFFFFF
-        if seq not in (0, 0xFFFFFFFF) and crc == expected_crc:
+        if seq == 0 and crc == expected_crc:
+            raise LabError("CRC-valid OTA sequence zero requires explicit investigation")
+        if seq != 0xFFFFFFFF and crc == expected_crc:
             # NEW/PENDING/INVALID/ABORTED need firmware rollback handling.
             if state not in (2, 0xFFFFFFFF):
                 raise LabError("Unsupported OTA rollback state; do not override it")
@@ -137,6 +139,8 @@ def plan_selection(raw, network):
         raise LabError("OTA sequence rollover requires separate recovery")
     updated = bytearray(b"\xff" * SECTOR)
     struct.pack_into("<I", updated, 0, seq)
-    struct.pack_into("<I", updated, 24, 2)  # ESP_OTA_IMG_VALID
+    # Match ESP-IDF without rollback: erased/UNDEFINED state, not an assertion
+    # that this image has passed an application self-test (ESP_OTA_IMG_VALID).
+    struct.pack_into("<I", updated, 24, 0xFFFFFFFF)
     struct.pack_into("<I", updated, 28, binascii.crc32(updated[:4], 0xFFFFFFFF) & 0xFFFFFFFF)
     return 1 - base.sector, bytes(updated)

@@ -88,3 +88,7 @@ Until the required hardware evidence is passed: fix dualboot/USB/profile/recover
 - [Reference dualboot checkout](https://github.com/tkh1000/Meshtastic-Meshcore-Dualboot-Heltec-V4-/tree/b889b895a9ef96a07c217cbc02460cf8e64b0739). The root and selector source tables differ; USB control is not supplied by its OLED/button workflow.
 - [MeshCore USB companion environment](https://github.com/meshcore-dev/MeshCore/blob/81dbae592ffad40b4212bc0b37e82b38da08f4bc/variants/heltec_v4/platformio.ini).
 - [Home Assistant app configuration](https://contributors.home-assistant.io/apps/reference/configuration/), serial/USB access and admin Ingress.
+
+## OTA state policy (C3)
+
+The writer emits state `0xFFFFFFFF` (UNDEFINED), matching the ESP-IDF no-rollback OTA-tool form, rather than forcing `ESP_OTA_IMG_VALID=2`. It reads both VALID and UNDEFINED, and refuses pending/invalid/aborted rollback states. A CRC-valid sequence zero is also refused explicitly instead of silently discarded; the fixed sequence-1 CRC fixture is `0x4743989A`. This is a conservative lab policy, not proof that the external bootloader has rollback disabled. Compare exact OTA-tool output and actual boot behaviour in A5 before enabling automation.

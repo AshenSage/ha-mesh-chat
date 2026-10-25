@@ -313,3 +313,18 @@ def test_b7_meshcore_contacts_and_channel_keys_are_checked(monkeypatch):
     state["secret"] = b"different-secret"
     third = asyncio.run(worker.probe_meshcore("fake"))
     assert second["settings_sha256"] != third["settings_sha256"]
+
+
+def test_c3_fixed_crc_reference_zero_refusal_and_no_rollback_state():
+    import struct
+    from lab.layout import boot_entries, plan_selection, SECTOR
+    from test_dualboot_lab import otadata, apply
+    golden = bytearray(b"\xff" * (2 * SECTOR))
+    golden[:4] = b"\x01\x00\x00\x00"
+    golden[28:32] = b"\x9a\x98\x43\x47"  # ESP-IDF seq 1 CRC 0x4743989A, independent literal
+    assert boot_entries(bytes(golden))[0].seq == 1
+    with pytest.raises(LabError, match="sequence zero"):
+        boot_entries(otadata(first=0))
+    sector, content = plan_selection(bytes(golden), "meshtastic")
+    assert struct.unpack_from("<I", content, 24)[0] == 0xFFFFFFFF
+    assert len(boot_entries(apply(bytes(golden), (sector, content)))) == 2
