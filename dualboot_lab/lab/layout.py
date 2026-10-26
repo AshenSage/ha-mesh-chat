@@ -26,6 +26,7 @@ EXPECTED = (
     ("mc_spiffs", 1, 0x82, 0xDF0000, 0x200000),
     ("coredump", 1, 3, 0xFF0000, 0x10000),
 )
+OTA_OFFSET, OTA_SIZE = next((row[3], row[4]) for row in EXPECTED if row[0] == "otadata")
 
 
 class LabError(Exception):
@@ -34,6 +35,33 @@ class LabError(Exception):
 
 def digest(data):
     return hashlib.sha256(data).hexdigest()
+
+
+def app_project(header):
+    """ESP image header (24), first segment header (8), esp_app_desc_t."""
+    if len(header) < 288 or header[0] != 0xE9 or header[32:36] != b"\x32\x54\xcd\xab":
+        raise LabError("Missing ESP application descriptor")
+    try:
+        return header[80:112].split(b"\0", 1)[0].decode("ascii").lower()
+    except UnicodeError as exc:
+        raise LabError("Invalid application project name") from exc
+
+
+def verify_slot_projects(read_flash):
+    """Reject conflicting non-generic descriptors, not attest runtime slot identity.
+
+    Empty/arduino-lib-builder names carry no slot evidence. For these images
+    require_slot_attestations is the operative guard; protocol N answering while
+    otadata selects S does not itself prove S ran. That attribution requires A5.
+    """
+    projects = {}
+    for network, slot in NETWORKS.items():
+        address = next(row[3] for row in EXPECTED if row[0] == f"ota_{slot}")
+        project = app_project(read_flash(address, 288))
+        if project not in ("", "arduino-lib-builder") and project != network and not project.startswith(network + "-"):
+            raise LabError(f"ota_{slot} project does not identify {network}; refuse boot-selection write")
+        projects[network] = project
+    return projects
 
 
 def validate_table(raw):
@@ -83,7 +111,9 @@ def boot_entries(raw):
         seq = struct.unpack_from("<I", row)[0]
         state, crc = struct.unpack_from("<II", row, 24)
         expected_crc = binascii.crc32(row[:4], 0xFFFFFFFF) & 0xFFFFFFFF
-        if seq not in (0, 0xFFFFFFFF) and crc == expected_crc:
+        if seq == 0 and crc == expected_crc:
+            raise LabError("CRC-valid OTA sequence zero requires explicit investigation")
+        if seq != 0xFFFFFFFF and crc == expected_crc:
             # NEW/PENDING/INVALID/ABORTED need firmware rollback handling.
             if state not in (2, 0xFFFFFFFF):
                 raise LabError("Unsupported OTA rollback state; do not override it")
@@ -116,6 +146,8 @@ def plan_selection(raw, network):
         raise LabError("OTA sequence rollover requires separate recovery")
     updated = bytearray(b"\xff" * SECTOR)
     struct.pack_into("<I", updated, 0, seq)
-    struct.pack_into("<I", updated, 24, 2)  # ESP_OTA_IMG_VALID
+    # Match ESP-IDF without rollback: erased/UNDEFINED state, not an assertion
+    # that this image has passed an application self-test (ESP_OTA_IMG_VALID).
+    struct.pack_into("<I", updated, 24, 0xFFFFFFFF)
     struct.pack_into("<I", updated, 28, binascii.crc32(updated[:4], 0xFFFFFFFF) & 0xFFFFFFFF)
     return 1 - base.sector, bytes(updated)

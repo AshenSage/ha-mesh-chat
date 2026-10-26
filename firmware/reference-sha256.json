@@ -1,0 +1,27 @@
+{
+  "source": "https://github.com/tkh1000/Meshtastic-Meshcore-Dualboot-Heltec-V4-",
+  "commit": "b889b895a9ef96a07c217cbc02460cf8e64b0739",
+  "hardware_validated": false,
+  "files": {
+    "prebuilt/bootloader.bin": {
+      "sha256": "dec15b0f7538f0ca62dc5889bb2c604a750e858982642e9fe164a3d319bcc351",
+      "size": 15040
+    },
+    "prebuilt/partition-table.bin": {
+      "sha256": "e1256cf96381f2a5a8f91899fda9d4a4ca24f3471e6af0cb56a9c7176bcaf8cd",
+      "size": 3072
+    },
+    "prebuilt/ota_data_initial.bin": {
+      "sha256": "7d2c7ac4888bfd75cd5f56e8d61f69595121183afc81556c876732fd3782c62f",
+      "size": 8192
+    },
+    "prebuilt/selector.bin": {
+      "sha256": "974d5223d7a72f5ef4de180af4c6f3c68ac4372474c3c613f96c63c74cb4cfd8",
+      "size": 227792
+    },
+    "meshtastic/firmware.bin": {
+      "sha256": "6df930f7fd5dcf130c1835d69e28a11352a87c7309e6b4e7a5c50b26c6fcba2e",
+      "size": 2114608
+    }
+  }
+}

@@ -1,0 +1,131 @@
+--- a/examples/companion_radio/main.cpp
++++ b/examples/companion_radio/main.cpp
+@@ -178,7 +178,7 @@
+   store.begin();
+   the_mesh.begin();
+ #elif defined(ESP32)
+-  SPIFFS.begin(true);
++  SPIFFS.begin(true, "/spiffs", 10, "mc_spiffs");
+   store.begin();
+   the_mesh.begin();
+ #else
+--- a/variants/heltec_v4/platformio.ini
++++ b/variants/heltec_v4/platformio.ini
+@@ -181,23 +181,73 @@
+ 
+ [env:heltec_v4_companion_radio_usb]
+ extends = heltec_v4_oled
+-build_flags =
+-  ${heltec_v4_oled.build_flags}
+-  -I examples/companion_radio/ui-new
+-  -D MAX_CONTACTS=350
+-  -D MAX_GROUP_CHANNELS=40
+-  -D DISPLAY_CLASS=SSD1306Display
++platform = platformio/espressif32@6.11.0
++platform_packages =
++  platformio/framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b
++  espressif/toolchain-xtensa-esp32s3 @ 8.4.0+2021r2-patch5
++  espressif/toolchain-riscv32-esp @ 8.4.0+2021r2-patch5
++  platformio/tool-esptoolpy @ 1.40501.0
++board_build.partitions = partitions_mesh_chat_lab.csv
++board_upload.maximum_size = 4587520
++build_flags =
++  ${esp32_base.build_flags}
++  -I variants/heltec_v4
++  -D HELTEC_LORA_V4
++  -D USE_SX1262
++  -D ESP32_CPU_FREQ=80
++  -D RADIO_CLASS=CustomSX1262
++  -D WRAPPER_CLASS=CustomSX1262Wrapper
++  -D P_LORA_TX_LED=35
++  -D P_LORA_DIO_1=14
++  -D P_LORA_NSS=8
++  -D P_LORA_RESET=12
++  -D P_LORA_BUSY=13
++  -D P_LORA_SCLK=9
++  -D P_LORA_MISO=11
++  -D P_LORA_MOSI=10
++  -D P_LORA_PA_POWER=7  ; // VFEM_Ctrl -LDO power enable
++  -D P_LORA_GC1109_PA_EN=2    ; // CSD - GC1109 chip enable (HIGH=on)
++  -D P_LORA_GC1109_PA_TX_EN=46 ;// CPS - GC1109 PA mode (HIGH=full PA, LOW=bypass)
++  -D P_LORA_KCT8103L_PA_CSD=2
++  -D P_LORA_KCT8103L_PA_CTX=5
++  -D PIN_USER_BTN=0
++  -D PIN_VEXT_EN=36
++  -D PIN_VEXT_EN_ACTIVE=HIGH
++  -D LORA_TX_POWER=10 ;If it is configured as 10 here, the final output will be 22 dbm.
++  -D MAX_LORA_TX_POWER=22 ; Max SX1262 output
++  -D SX126X_REGISTER_PATCH=1       ; Patch register 0x8B5 for improved RX
++  -D SX126X_DIO2_AS_RF_SWITCH=true ; GC1109 CTX is controlled by SX1262 DIO2
++  -D SX126X_DIO3_TCXO_VOLTAGE=1.8
++  -D SX126X_CURRENT_LIMIT=140
++  -D SX126X_RX_BOOSTED_GAIN=1      ; In some cases, commenting this out will improve RX
++  -D PIN_GPS_RX=38
++  -D PIN_GPS_TX=39
++  -D PIN_GPS_RESET=42
++  -D PIN_GPS_RESET_ACTIVE=LOW
++  -D PIN_GPS_EN=34
++  -D PIN_GPS_EN_ACTIVE=LOW
++  -D PIN_ADC_CTRL=37
++  -D PIN_VBAT_READ=1
++  -D HELTEC_LORA_V4_OLED
++  -D PIN_BOARD_SDA=17
++  -D PIN_BOARD_SCL=18
++  -D PIN_OLED_RESET=21
++  -D MAX_CONTACTS=350
++  -D MAX_GROUP_CHANNELS=40
+   -D ENABLE_USB_INTERFACE
+-; NOTE: DO NOT ENABLE -->  -D MESH_PACKET_LOGGING=1
+-; NOTE: DO NOT ENABLE -->  -D MESH_DEBUG=1
+-build_src_filter = ${heltec_v4_oled.build_src_filter}
+-  +<helpers/ui/SSD1306Display.cpp>
+-  +<helpers/ui/MomentaryButton.cpp>
+-  +<../examples/companion_radio/*.cpp>
+-  +<../examples/companion_radio/ui-new/*.cpp>
+-lib_deps =
+-  ${heltec_v4_oled.lib_deps}
+-  densaugeo/base64 @ ~1.4.0
++build_src_filter = ${Heltec_lora32_v4.build_src_filter}
++  +<../examples/companion_radio/*.cpp>
++lib_deps =
++  SPI
++  Wire
++  https://github.com/jgromes/RadioLib.git#6d8934836678d8894e3d556550475b37dce3e2b6
++  rweather/Crypto @ 0.4.0
++  adafruit/RTClib @ 2.1.4
++  adafruit/Adafruit BusIO @ 1.17.4
++  melopero/Melopero RV3028 @ 1.2.0
++  electroniccats/CayenneLPP @ 1.6.1
++  bblanchon/ArduinoJson @ 7.4.3
++  densaugeo/base64 @ 1.4.0
+ 
+ [env:heltec_v4_companion_radio_ble]
+ extends = heltec_v4_oled
+--- /dev/null
++++ b/partitions_mesh_chat_lab.csv
+@@ -0,0 +1,11 @@
++# Isolated 16 MB layout. Must match dualboot_lab/lab/layout.py exactly.
++# Name, Type, SubType, Offset, Size
++nvs,data,nvs,0x9000,0x10000
++nvs_sel,data,nvs,0x19000,0x3000
++otadata,data,ota,0x1C000,0x2000
++factory,app,factory,0x20000,0x200000
++ota_0,app,ota_0,0x220000,0x460000
++ota_1,app,ota_1,0x680000,0x570000
++spiffs,data,spiffs,0xBF0000,0x200000
++mc_spiffs,data,spiffs,0xDF0000,0x200000
++coredump,data,coredump,0xFF0000,0x10000
+--- a/examples/companion_radio/DataStore.cpp
++++ b/examples/companion_radio/DataStore.cpp
+@@ -173,9 +173,8 @@
+ #elif defined(RP2040_PLATFORM)
+   return LittleFS.format();
+ #elif defined(ESP32)
+-  bool fs_success = ((fs::SPIFFSFS *)_fs)->format();
+-  esp_err_t nvs_err = nvs_flash_erase(); // no need to reinit, will be done by reboot
+-  return fs_success && (nvs_err == ESP_OK);
++  // Lab build: format only the mounted mc_spiffs; preserve shared NVS.
++  return ((fs::SPIFFSFS *)_fs)->format();
+ #else
+   #error "need to implement format()"
+ #endif

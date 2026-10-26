@@ -9,7 +9,7 @@ This is an experimental bench tool. The first goal is reproducible **USB switchi
 3. On Proxmox, pass through the Heltec USB device to the HAOS VM. Check that passthrough also survives bootloader/runtime USB re-enumeration; a physical USB-port mapping may be necessary. On Raspberry Pi, use direct USB.
 4. Select the exact serial path in HA Settings → System → Hardware → All hardware. Prefer `/dev/serial/by-id/...`; the app also uses a uniquely matching physical USB location after re-enumeration. It never selects an arbitrary available port.
 5. Configure `device` with that path. Leave `allow_boot_selection_write: false`. Confirm `board_confirmed: true` only after inspecting the physical model/variant, flash and radio band (Heltec V4 **ESP32-S3R2 / 16 MB / 868 MHz**, not R8).
-6. Stop other integrations, serial terminals and apps using this port. Start the lab and open its web UI in HA. It is admin-only Ingress; no public/listening host port or HA token is required.
+6. Stop other integrations, serial terminals and apps using this port. Start the lab and open its web UI in HA. The sidebar is configured admin-only; actual direct-Ingress non-admin rejection still needs the explicit HAOS test. Do not treat panel_admin as proven backend authorisation. No public/listening host port or HA token is required.
 
 Example app options (replace the device path):
 
@@ -19,7 +19,11 @@ board_confirmed: true
 allow_boot_selection_write: false
 ```
 
+The first read-only inspection reports esptool `get_psram_cap()` and chip features. Cap 2 means embedded PSRAM 2 MB in the pinned API; all other/unknown values block writes. Whether the actual Heltec V4-R2 reports cap 2 is NOT RUN and must be checked before relying on the candidate label. A checkbox is not chip evidence.
+
 Run **USB und Layout prüfen**. This enters ROM/stub mode, reads the chip, JEDEC flash size, partition table and boot metadata, then resets the radio. It interrupts reception even though it does not write flash. A fresh/single-firmware board is expected to report an unsupported layout. No installation or erase happens automatically.
+
+The two manual-boot USB baseline attestations bind observed protocol responses to the OTA selection and unchanged hashes of both app slots. They prove only "protocol N responded while otadata selected slot S", not "slot S actually ran"; that attribution remains dependent on the external manual A5 proof. Empty and generic `arduino-lib-builder` descriptors provide no independent slot identity. They are permitted only with those attestations; a non-generic conflicting project name still blocks. Attestation checks run in the first inspect session, before runtime probes or a second ROM session. This software evidence does not replace A5's actual bootloader proof.
 
 ## 2. Prepare firmware once, before the lab switching test
 
@@ -34,19 +38,20 @@ Reference reviewed: `tkh1000/Meshtastic-Meshcore-Dualboot-Heltec-V4-` at commit 
 Prepare the MeshCore source on a development computer (or use the manually triggered GitHub workflow **Build experimental MeshCore USB app**):
 
 ```sh
-python -m pip install platformio==6.1.18 esptool==4.11.0
+python -m pip install --require-hashes -r dualboot_lab/requirements-bootstrap.lock
+python -m pip install --require-hashes --no-build-isolation -r dualboot_lab/requirements-dev.lock
 git clone https://github.com/meshcore-dev/MeshCore.git firmware-work/MeshCore
 git -C firmware-work/MeshCore checkout 81dbae592ffad40b4212bc0b37e82b38da08f4bc
 python tools/prepare_meshcore_usb.py firmware-work/MeshCore --build
 ```
 
-The script requires a clean pinned checkout, patches the SPIFFS mount to `mc_spiffs`, applies the lab partition table to `heltec_v4_companion_radio_usb`, omits the OLED UI and optional external sensor/GPS support for this bench proof, and records the resulting binary hash. It never flashes a device. A local build has succeeded; complete bundle compatibility and headless runtime operation still require hardware evidence. See [software evidence](../docs/software-evidence.md). The source commit is fixed, but upstream transitive PlatformIO libraries are not fully locked yet; archive the actual build log and binary hashes used for each hardware test.
+The script requires a clean pinned checkout, patches the SPIFFS mount to `mc_spiffs`, applies the lab partition table to `heltec_v4_companion_radio_usb`, omits the OLED UI and optional external sensor/GPS support for this bench proof, and records the resulting binary hash. It never flashes a device. A local build has succeeded; complete bundle compatibility and headless runtime operation still require hardware evidence. See [software evidence](../docs/software-evidence.md). The source commit is fixed, but Python runtime/build dependencies have hash-locked release files and external PlatformIO libraries/packages have exact pins; byte-identical rebuilds are not yet demonstrated; archive the actual build log and binary hashes used for each hardware test.
 
 For a first bench installation, use the reference checkout at the pinned commit above, its prebuilt bootloader/table/OTA/selector and Meshtastic app, and the generated `meshcore-usb-lab.bin` instead of its BLE app. Before any first installation:
 
 1. Confirm the exact board and 16 MB flash with esptool, and connect the matching antenna.
 2. Read and preserve the **entire original 16 MB flash** with esptool `read_flash 0 0x1000000 ORIGINAL-BACKUP.bin`. Check the file size and record SHA-256. This is separate from the lab's later prepared-board snapshot. Never publish raw backups; they may contain private identities and channel keys.
-3. Stop the HA lab while using external esptool. Validate the supplied binary partition table with `tools/check_lab_table.py` before writing it. A CSV alone is insufficient.
+3. Run `python tools/verify_reference_bundle.py PATH_TO_PINNED_REFERENCE` before any installation; every reference binary must match `firmware/reference-sha256.json`. A matching hash is byte provenance, not proof of source correctness or hardware compatibility. Stop the HA lab while using external esptool. Validate the supplied binary partition table with `tools/check_lab_table.py` before writing it. A CSV alone is insufficient.
 4. Only then explicitly flash the six components at these offsets. Use esptool 4.11.0, `--chip esp32s3`, the exact selected `--port`, `write_flash --flash_mode dio --flash_freq 80m --flash_size 16MB`. Do not erase the whole flash or reuse an important standalone profile expecting automatic migration.
 
 | Offset | Experimental component |
@@ -58,14 +63,18 @@ For a first bench installation, use the reference checkout at the pinned commit 
 | `0x220000` | Our prepared `meshcore-usb-lab.bin` |
 | `0x680000` | Reference `meshtastic/firmware.bin` |
 
-Record all component SHA-256 hashes. First select and boot one firmware using the reference selector if needed. Finish its initial profile setup. Manually select/setup the other profile once if needed; finish configuration before capturing baselines. Do not apply OTA updates or change profiles during a measured round-trip run. The lab is allowed to fail here: USB runtime/control incompatibility is a result to diagnose, not a reason to weaken verification.
+The explicit dio/80m/16MB options may rewrite bootloader header bytes and its appended digest. AFTER a separately authorised flash, read back exactly the bootloader file length from address 0 to a private local file. Run `python tools/verify_reference_bundle.py PATH_TO_PINNED_REFERENCE --bootloader-readback READBACK.bin`; it compares against esptool 4.11's exact offline header transformation. Record source and readback hashes, header bytes, read length and command options. This task performs none of those hardware steps.
+
+Record all component SHA-256 hashes. First select and boot one firmware using the reference selector if needed. Finish its initial profile setup. Manually select and finish setup of BOTH profiles before enrolment; never rely on a first lab switch to create the second identity. Do not apply OTA updates or change profiles during a measured round-trip run. The lab is allowed to fail here: USB runtime/control incompatibility is a result to diagnose, not a reason to weaken verification.
 
 ## 3. Enrol and run individual switches
 
-1. Start the lab, run preflight, then **Testgerät registrieren + sichern**. The exact layout is required. The app reads a complete 16 MB prepared-board snapshot, checks the stored hash and binds its registry to the factory MAC, table and app hashes. Raw flash stays in private `/data` and is included in cold app backups. There is no raw-backup download endpoint.
+1. First finish both firmware profiles manually as described above. Start the lab, run preflight, then **Testgerät registrieren + sichern**. The exact layout is required. The app reads a complete 16 MB prepared-board snapshot, checks the stored hash and binds its registry to the factory MAC, table and app hashes. Raw flash stays in private `/data` and is included in cold app backups. There is no raw-backup download endpoint.
 2. Select the currently running firmware and **Ausgangszustand … erfassen**. A real USB response is required. MeshCore uses `SELF_INFO`; Meshtastic uses completed USB configuration, own node and metadata.
-3. Stop the app, enable `allow_boot_selection_write: true`, start it again. Choose the other firmware and **wechseln**. This is an explicit experimental lab action.
-4. The first visit to the other firmware creates its baseline and is labelled `first_boot_baseline`; it cannot prove historical profile preservation yet. Return to the original firmware, then back again. Later visits must match the stored identity and selected settings.
+3. Stop the lab and manually boot the other already configured firmware. Start the lab and capture its baseline too. Both USB protocol attestations must exist before any lab switch. A switch never creates a baseline.
+4. Stop the app, enable `allow_boot_selection_write: true`, start it again. Choose the other firmware and **wechseln**. This is an explicit experimental lab action.
+
+After both baselines have been recorded, run the read-only `resnapshot` command to capture both configured profiles. Every round-test start automatically resnapshots before any switch; a snapshot failure stops the run. Earlier recovery points are retained.
 
 A switch checks the existing snapshot and actual chip/layout/app fingerprints, checks the current runtime/profile, writes **one inactive 4 KB OTA selection sector**, reads it back while retaining the other valid copy, resets and checks the target protocol twice. Firmware application images, NVS and both profile filesystem partitions are not rewritten by the controller. The firmwares themselves can still write their own settings; persistence must be tested.
 
@@ -77,7 +86,7 @@ Start with **3 complete rounds**. Once these pass, run **20 complete rounds** on
 
 Use [the full acceptance plan](../docs/dualboot-proof.md), including restart, power-loss and dwell tests. Download the JSON report and attach the host/build details. These reports contain names and device identifiers but no private keys, channel keys or raw protocol dumps.
 
-Automated profile comparison currently covers public identity plus name and selected radio configuration, **not every channel/contact/key or private-key export**. Check the remaining profile data separately before marking full persistence passed. No geographic radio coverage, chat delivery or message-buffer claim follows from a dualboot pass.
+Automated profile comparison now covers public identity, names, selected radio configuration and channel index/name/PSK-hash (plus role on Meshtastic); MeshCore compares baseline public-key hashes as a subset, allowing new contacts; name/type/flags drift is warning-only. Channel reads must be complete. Raw keys are never returned. Existing baselines must be archived and deliberately re-established after this fingerprint change. This still does not prove private-key export or every firmware field. Check the remaining profile data separately before marking full persistence passed. No geographic radio coverage, chat delivery or message-buffer claim follows from a dualboot pass.
 
 ## Recovery and troubleshooting
 
@@ -91,8 +100,70 @@ Automated profile comparison currently covers public identity plus name and sele
 ## Local software checks
 
 ```sh
-python -m pip install -r dualboot_lab/requirements.txt pytest==8.4.2
+python -m pip install --require-hashes -r dualboot_lab/requirements-bootstrap.lock
+python -m pip install --require-hashes --no-build-isolation -r dualboot_lab/requirements-dev.lock
 python -m pytest -q
 ```
 
 For local UI development set `LAB_LOCAL=1`, `LAB_DATA` to a private test directory containing `options.json`, and run `PYTHONPATH=dualboot_lab python -m lab.server`. This binds to loopback only. Never expose the local development server to a network.
+
+### Pinned reset API (C4)
+
+ESP32S3ROM.hard_reset in esptool 4.11 takes no uses_usb argument; its override calls uses_usb_otg internally and delegates the result (or a watchdog path) to the base loader. Fake-transport control-flow tests cover USB/non-USB delegation. Actual native USB reset and container device-node visibility remain NOT RUN.
+
+### Storage and offline selection recovery (C5)
+
+New private files are created with mode 0600 from the first open; JSON updates use private unique temporary files and atomic replacement. A full snapshot also compares its local MD5 with a separate device flash MD5 result. If an interrupted initial enrolment left `flash-*.bin` without a registry, the next enrolment refuses to proceed: preserve/archive and investigate these files instead of silently deleting a possible recovery point.
+
+A corrupt report is quarantined as `report-corrupt-*.json`; startup begins a new report without resuming old jobs. The live report retains 100 runs; overflow rotates to at most five private report archives. Raw snapshots are not automatically deleted by report rotation.
+
+`python tools/prepare_selection_recovery.py JOURNAL.json FRESH-OTADATA.bin --expect-mac TRUSTED_MAC --output PRIVATE_DIRECTORY` reads private files only. It prepares one inactive-sector recovery candidate and a hash/address plan for the journal's previous selection, or reports a no-op. It NEVER opens USB, resets a board or writes flash. A stale file is not evidence of current board state. Before any separate physical recovery, independently verify fresh device identity, layout/builds, current OTA data, candidate size/address/hash and the retained valid sector. The generated plan is not proof of restoration. Hardware recovery remains NOT RUN.
+
+
+### Open selection journal
+
+`pending` or `written` blocks every new switch and round test in both server and worker, including the final writer. Never overwrite the recovery pre-state with a new attempt. After independently inspecting/recovering the board, explicitly use `acknowledge_journal --reason manual_recovery_checked` (or `abandoned_after_inspection`). This file-only action archives the original journal and reason before marking it acknowledged. It is not recovery or hardware validation. No automatic acknowledgement occurs.
+
+
+After a failed post-write verification, `verify_selection --network TARGET` retries only observation of the already selected target: it checks backup/device/attestations, compares two live protocol probes with its baseline, and marks a matching `written` journal `verified`. It requires the journal MAC to match the actually inspected device, including a repeat check at the final transition; old journals without MAC are refused. It never calls Radio.select. A pending, foreign-MAC or different-target journal remains unchanged and requires investigation. Ordinary switch/cycle remains blocked until verification or explicit acknowledgement succeeds.
+
+
+MeshCore fingerprint schema: radio and channels have separate hashes. Contacts are a set of hashes of public keys only plus a count; automatic additions are accepted, but every baseline key must remain present. Name/type/flags have a separate contacts_meta_sha256; changes emit meshcore_contacts_meta_changed without blocking. Schema 2 is mandatory: previous full-record hashes require Baseline neu erfassen. Error messages name only the component. Raw contact records and PSKs are not logged. Earlier combined-hash baselines fail with `Baseline neu erfassen`; archive/re-enrol deliberately and capture both manual baselines, never silently migrate them.
+
+
+Resnapshot checks the currently active live profile against its baseline before reading the new full-flash image. It rechecks device/slot selection before saving; any mismatch leaves the old pointer unchanged. The inactive profile cannot be live-checked without switching; second-board restoration of the current snapshot remains NOT RUN. Recovery history is a flat `previous_backups` list (newest first), with immutable `enrol_backup`. Legacy nested previous_backup records are flattened iteratively on load and persisted at the next registry write. The original enrolment snapshot and latest two snapshots are protected. Older known snapshots are listed as `retention_pending` and are removed only through explicit file-only `prune_snapshots --reason retention_reviewed`. Prune saves its audit record, durably removes candidate references from the registry, then deletes the files. Interruption after registry save can leave only orphan files listed in the audit; investigate these deliberately rather than silently deleting them. Unknown/orphan snapshots are never removed automatically; inspect storage before long experiments.
+
+
+SIGTERM sets a termination flag. Outside cleanup it unwinds the current operation; during Radio.__exit__ it is deferred until hard_reset and port close finish. Repeated TERM does not interrupt cleanup. If TERM interrupts esptool detect_chip before it returns a loader, the worker owns no loader/port and cannot guarantee cleanup: the board may remain in ROM mode and requires independent inspection. No hardware reset/USB outcome is claimed by the fake signal tests.
+
+
+Shared-NVS boundary (N5, supersedes R2-4): the pinned upstream ESP32 factory-reset path calls shared `nvs_flash_erase` through `DataStore::formatFileSystem()`, reached by CMD_FACTORY_RESET and CLI erase. Decision **a**: our versioned lab patch removes that call and returns only the result of formatting the mounted `mc_spiffs` filesystem. Exact original/prepared DataStore hashes bind this change. The upstream erase line is allowlisted only to audit the original checkout before patching and after source-only reversal; it is absent in the prepared lab function. A factory reset still intentionally destroys MeshCore's own profile and must not be triggered during profile-preservation measurements. This change does not prove global shared-NVS isolation or Meshtastic behaviour; NVS/power-cut observations remain NOT RUN.
+
+The audit also flags Update.begin/write, esp_ota calls and spi_flash/esp_flash erase/write families. The three known AsyncElegantOTA calls are explicitly allowlisted because ESP32Board includes that path only under ADMIN_PASSWORD and without DISABLE_WIFI_OTA, for Repeater/Room. The USB companion lab build must contain no `MeshCore-OTA` marker; the build script rejects such an image before publishing it. Passing this marker check is a build guard, not whole-program or hardware proof.
+
+
+Stop budget: Supervisor `timeout: 30` is explicitly configured; the documented default is 10 seconds, range 10–300 ([official configuration reference](https://contributors.home-assistant.io/apps/reference/configuration/)). Worker SIGTERM grace remains 15 seconds with 2 seconds HTTP shutdown budget. Actual add-on stop during write and time to a running board remain NOT RUN; a forced KILL never establishes successful reset. For standalone Docker tests configure the equivalent 30-second stop timeout.
+
+
+Selector NVS MD5 is observed and compared but a change currently emits `selector_nvs_changed_unvalidated`, retained in the report, rather than blocking normal boots. Whether nvs_sel is stable across both runtimes/selector is an unproved A5 assumption; record its read-only before/after MD5 over multiple normal boots. MAC/layout/app/bootloader mismatches still stop the run.
+
+
+Debug retention: sanitized `debug.jsonl` rotates at 1 MiB, keeping at most three archives plus the current file, all private. Snapshot retention is separately protected and requires the explicit R2-3 acknowledgement before old flash copies are removed.
+
+
+Container base is pinned to the Docker Official Images Python 3.12 slim-bookworm multiarchitecture index `sha256:6a0e06f5ba0b373d051aabd3fffb9b873f27f9a2a3a14bcbe37dee6f0e3bbc70` (registry lookup 2026-10-25; index content hash verified, amd64 and arm64/v8 entries present). Refresh it deliberately with CI, rather than following a moving tag. This is provenance, not a completed container rebuild.
+
+
+The storage audit covers git-tracked MeshCore `.c/.cpp/.h/.ino` sources only. `.pio` libraries, the installed framework, generated code and indirect wrappers are outside that check. See the [durability investigation](../docs/quiesce-investigation.md); passing the allowlist is not proof of whole-program storage isolation.
+
+
+MeshCore contact enumeration explicitly requests `timeout=120` seconds (pinned `ContactCommands.get_contacts` supports this keyword), rather than relying on the short command default. A missing/incomplete final CONTACTS response still fails closed; the parent phase timeout remains an additional bound. Timing with up to 350 actual contacts is NOT RUN.
+
+
+Journal semantics: **pending means the write may have begun**, including partial or completed writes before the status update. It never proves that no flash change occurred. `written` means the transfer completed, while post-write readback/runtime verification may still have failed; only `verified` records successful checks. File-only recovery plans repeat this caution, including no-op plans. Preserve the pre-state and inspect the actual board independently before any physical recovery.
+
+
+N2 report boundary: full MeshCore contact-key membership and contact metadata fingerprints stay in the private registry and in-memory comparison. Worker baseline/switch results use an explicit summary allowlist: only contacts_count is exported for contacts. No contacts_set list is copied into step results or status polls; comparison still uses the full private baseline.
+
+
+Software review completed on 2026-10-26 with no remaining P1/P2 findings. The final P3 notes are handled by durable-registry-before-unlink pruning and a hardware-test-plan entry for the Arduino NVS init fallback. The official Arduino 2.0.17 framework can erase the first NVS partition on NO_FREE_PAGES/NEW_VERSION_FOUND; our factory-reset patch does not prevent that separate path. Actual trigger/impact are NOT RUN and belong in the [shared-NVS comparison](../docs/dualboot-proof.md#arduino-core-nvs-auto-erase-assumption--not-run). Before round tests, also verify full contact capacity (350), power-cut/formatOnFail, actual stop/reset latency and second-board recovery. This software milestone is not hardware clearance.

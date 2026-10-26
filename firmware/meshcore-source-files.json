@@ -1,0 +1,18 @@
+{
+  "examples/companion_radio/main.cpp": {
+    "original": "389e32564945fe87cc1047fd709e7f91c89c9888102bf56d7d2d6aa29959ee9f",
+    "prepared": "f6e3859ef6e7ec0aeb52f6fca5b97c0c772cd2142fc7b58f29c89190a882028a"
+  },
+  "variants/heltec_v4/platformio.ini": {
+    "original": "9cee194b2da8b49473f1c497737ef2a2e4c6edef8265e55ec248e6ceb8ecfd20",
+    "prepared": "f197760502ca68721adaf71541624eb4b36dbab91ccadbbdc91e0e89523fe64e"
+  },
+  "partitions_mesh_chat_lab.csv": {
+    "original": null,
+    "prepared": "2d8ced3c73469763eed070eb592334c245a6e3c4bb1924a76ff1276fa19b42cd"
+  },
+  "examples/companion_radio/DataStore.cpp": {
+    "original": "a2f6bdd542c281a688d4d508904ff00780412e5bc6f52ecb214afd965a35d4f9",
+    "prepared": "923ab209059641c5663e412262a984fe373ab12a12d9d8e3dc22d3f82f78d421"
+  }
+}

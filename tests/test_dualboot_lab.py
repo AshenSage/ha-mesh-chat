@@ -12,6 +12,14 @@ from lab.server import Lab
 from lab.worker import Radio, compare_profile, require_same_device, save_json
 
 
+def attested(info):
+    return {**info, "app_md5": info.get("app_md5") or {"ota_0": "mc", "ota_1": "mt"},
+            "profiles": {n: {} for n in ("meshcore", "meshtastic")},
+            "slot_attestation": {n: {"slot": slot, "app_md5": (info.get("app_md5") or
+                {"ota_0": "mc", "ota_1": "mt"})[f"ota_{slot}"], "evidence": "fake USB protocol"}
+                for n, slot in (("meshcore", 0), ("meshtastic", 1))}}
+
+
 def table(entries=EXPECTED):
     raw = b"".join(struct.pack("<HBBII16sI", 0x50AA, kind, subtype, address, size,
                                name.encode().ljust(16, b"\x00"), 0)
@@ -83,7 +91,7 @@ def test_never_accept_changed_board_build_or_profile():
     for key in record:
         with pytest.raises(LabError, match="changed"):
             require_same_device({**record, key: "other"}, record)
-    baseline = {"network": "meshcore", "identity_sha256": "key", "settings_sha256": "radio"}
+    baseline = {"network": "meshtastic", "identity_sha256": "key", "settings_sha256": "radio"}
     compare_profile(baseline, baseline)
     for key in baseline:
         with pytest.raises(LabError, match="Profile changed"):
@@ -98,6 +106,13 @@ class Stub:
         self.writes = []
 
     def read_flash(self, offset, size):
+        if size == 288:
+            header = bytearray(288)
+            header[0] = 0xE9
+            header[32:36] = b"\x32\x54\xcd\xab"
+            name = b"meshcore" if offset == 0x220000 else b"meshtastic"
+            header[80:80 + len(name)] = name
+            return bytes(header)
         assert (offset, size) == (0x1C000, 2 * SECTOR)
         return self.raw
 
@@ -118,10 +133,12 @@ class Stub:
 
 
 def test_hardware_writer_only_modifies_inactive_ota_sector(tmp_path):
-    radio = Radio("fake")
+    radio = Radio("fake", board_confirmed=True, allow_boot_selection_write=True)
     radio.mac = "00:11"
+    radio.psram_cap = 2
     radio.esp = Stub()
     info = {"mac": radio.mac, "flash_size": 0x1000000, "table_sha256": "abc", "app_md5": {}}
+    info = attested(info)
     radio.inspect = lambda: info
     assert radio.select("meshtastic", info, tmp_path)
     assert radio.esp.writes == [(0x1D000, SECTOR)]
@@ -130,10 +147,12 @@ def test_hardware_writer_only_modifies_inactive_ota_sector(tmp_path):
 
 
 def test_storage_failure_prevents_write(tmp_path, monkeypatch):
-    radio = Radio("fake")
+    radio = Radio("fake", board_confirmed=True, allow_boot_selection_write=True)
     radio.mac = "00:11"
+    radio.psram_cap = 2
     radio.esp = Stub()
     info = {"mac": "00:11"}
+    info = attested(info)
     radio.inspect = lambda: info
     def fail(*_):
         raise OSError("disk full")
@@ -164,7 +183,9 @@ def test_cycle_counts_real_transitions_and_stops_on_first_failure(tmp_path):
     async def scenario(fail=False):
         lab = Lab(tmp_path)
         calls = []
-        async def fake(action, config, network):
+        async def fake(action, config, network=None):
+            if action == "resnapshot":
+                return {"status": "snapshot_saved"}
             calls.append(network)
             if fail and len(calls) == 3:
                 raise LabError("target failed to reply")
@@ -245,7 +266,8 @@ def test_meshtastic_runtime_requires_public_key_and_closes_transport(monkeypatch
     interface = SimpleNamespace(getMyNodeInfo=lambda: {"user": user},
                 myInfo=SimpleNamespace(my_node_num=0x12345678),
                 metadata=SimpleNamespace(firmware_version="test-build"),
-                localNode=SimpleNamespace(localConfig=SimpleNamespace(lora=config_pb2.Config.LoRaConfig())),
+                localNode=SimpleNamespace(localConfig=SimpleNamespace(lora=config_pb2.Config.LoRaConfig()),
+                     channels=[SimpleNamespace(index=0, role=1, settings=SimpleNamespace(name="test", psk=b"secret"))]),
                 close=lambda: closed.append(True))
     monkeypatch.setattr(meshtastic.serial_interface, "SerialInterface", lambda **_: interface)
     result = probe_meshtastic("fake")
@@ -269,7 +291,16 @@ def test_meshcore_runtime_requires_self_info_and_closes_transport(monkeypatch):
     async def disconnect():
         closed.append(True)
     async def connect(*_, **__):
-        return SimpleNamespace(commands=SimpleNamespace(send_appstart=appstart), disconnect=disconnect)
+        async def query():
+            return SimpleNamespace(type=EventType.DEVICE_INFO, payload={"max_channels": 1})
+        async def channel(index):
+            return SimpleNamespace(type=EventType.CHANNEL_INFO, payload={"channel_idx": index,
+                                   "channel_name": "test", "channel_secret": b"x" * 16})
+        async def contacts(*, timeout):
+            assert timeout == 120
+            return SimpleNamespace(type=EventType.CONTACTS, payload={})
+        return SimpleNamespace(commands=SimpleNamespace(send_appstart=appstart, send_device_query=query,
+                               get_channel=channel, get_contacts=contacts), disconnect=disconnect)
     monkeypatch.setattr(MeshCore, "create_serial", connect)
     result = asyncio.run(probe_meshcore("fake"))
     assert result["network"] == "meshcore"

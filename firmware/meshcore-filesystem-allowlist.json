@@ -1,0 +1,114 @@
+[
+  {
+    "path": "examples/companion_radio/DataStore.cpp",
+    "text": "return LittleFS.format();"
+  },
+  {
+    "path": "examples/companion_radio/main.cpp",
+    "text": "LittleFS.begin();"
+  },
+  {
+    "path": "examples/companion_radio/main.cpp",
+    "text": "SPIFFS.begin(true);"
+  },
+  {
+    "path": "examples/kiss_modem/main.cpp",
+    "text": "SPIFFS.begin(true);"
+  },
+  {
+    "path": "examples/kiss_modem/main.cpp",
+    "text": "LittleFS.begin();"
+  },
+  {
+    "path": "examples/simple_repeater/MyMesh.cpp",
+    "text": "return InternalFS.format();"
+  },
+  {
+    "path": "examples/simple_repeater/MyMesh.cpp",
+    "text": "return LittleFS.format();"
+  },
+  {
+    "path": "examples/simple_repeater/MyMesh.cpp",
+    "text": "return SPIFFS.format();"
+  },
+  {
+    "path": "examples/simple_repeater/main.cpp",
+    "text": "SPIFFS.begin(true);"
+  },
+  {
+    "path": "examples/simple_repeater/main.cpp",
+    "text": "LittleFS.begin();"
+  },
+  {
+    "path": "examples/simple_room_server/MyMesh.cpp",
+    "text": "return InternalFS.format();"
+  },
+  {
+    "path": "examples/simple_room_server/MyMesh.cpp",
+    "text": "return LittleFS.format();"
+  },
+  {
+    "path": "examples/simple_room_server/MyMesh.cpp",
+    "text": "return SPIFFS.format();"
+  },
+  {
+    "path": "examples/simple_room_server/main.cpp",
+    "text": "LittleFS.begin();"
+  },
+  {
+    "path": "examples/simple_room_server/main.cpp",
+    "text": "SPIFFS.begin(true);"
+  },
+  {
+    "path": "examples/simple_secure_chat/main.cpp",
+    "text": "LittleFS.begin();"
+  },
+  {
+    "path": "examples/simple_secure_chat/main.cpp",
+    "text": "SPIFFS.begin(true);"
+  },
+  {
+    "path": "examples/simple_sensor/SensorMesh.cpp",
+    "text": "return InternalFS.format();"
+  },
+  {
+    "path": "examples/simple_sensor/SensorMesh.cpp",
+    "text": "return LittleFS.format();"
+  },
+  {
+    "path": "examples/simple_sensor/SensorMesh.cpp",
+    "text": "return SPIFFS.format();"
+  },
+  {
+    "path": "examples/simple_sensor/main.cpp",
+    "text": "SPIFFS.begin(true);"
+  },
+  {
+    "path": "examples/simple_sensor/main.cpp",
+    "text": "LittleFS.begin();"
+  },
+  {
+    "path": "examples/companion_radio/main.cpp",
+    "text": "SPIFFS.begin(true, \"/spiffs\", 10, \"mc_spiffs\");"
+  },
+  {
+    "path": "examples/companion_radio/DataStore.cpp",
+    "text": "esp_err_t nvs_err = nvs_flash_erase(); // no need to reinit, will be done by reboot",
+    "decision": "Original pinned checkout only, audited before patching or after source-only reversal. Lab patch removes this shared-NVS erase and makes reset return only the mounted FS format result; exact original/prepared DataStore hashes enforced."
+  },
+  {
+    "path": "arch/esp32/AsyncElegantOTA/src/AsyncElegantOTA.cpp",
+    "text": "if (!Update.begin((cmd == U_FS)?fsSize:maxSketchSpace, cmd)){ // Start with max available size",
+    "decision": "Pinned AsyncElegantOTA helper; ESP32Board.cpp:6 includes it only with ADMIN_PASSWORD and without DISABLE_WIFI_OTA (Repeater/Room). USB companion lab environment does not enable it. Binary guard also rejects MeshCore-OTA marker; dependency/framework audit remains out of scope."
+  },
+  {
+    "path": "arch/esp32/AsyncElegantOTA/src/AsyncElegantOTA.cpp",
+    "text": "if (!Update.begin(UPDATE_SIZE_UNKNOWN, cmd)) { // Start with max available size",
+    "decision": "Pinned AsyncElegantOTA helper; ESP32Board.cpp:6 includes it only with ADMIN_PASSWORD and without DISABLE_WIFI_OTA (Repeater/Room). USB companion lab environment does not enable it. Binary guard also rejects MeshCore-OTA marker; dependency/framework audit remains out of scope."
+  },
+  {
+    "path": "arch/esp32/AsyncElegantOTA/src/AsyncElegantOTA.cpp",
+    "text": "if (Update.write(data, len) != len) {",
+    "decision": "Pinned AsyncElegantOTA helper; ESP32Board.cpp:6 includes it only with ADMIN_PASSWORD and without DISABLE_WIFI_OTA (Repeater/Room). USB companion lab environment does not enable it. Binary guard also rejects MeshCore-OTA marker; dependency/framework audit remains out of scope."
+  }
+]
