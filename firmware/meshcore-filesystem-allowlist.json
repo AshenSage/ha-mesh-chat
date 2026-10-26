@@ -94,6 +94,21 @@
   {
     "path": "examples/companion_radio/DataStore.cpp",
     "text": "esp_err_t nvs_err = nvs_flash_erase(); // no need to reinit, will be done by reboot",
-    "decision": "Known shared-nvs erase used by factory reset and CLI erase. Retained upstream behaviour; forbidden during lab persistence experiments. This allowlist is visibility, not isolation or hardware validation."
+    "decision": "Original pinned checkout only, audited before patching or after source-only reversal. Lab patch removes this shared-NVS erase and makes reset return only the mounted FS format result; exact original/prepared DataStore hashes enforced."
+  },
+  {
+    "path": "arch/esp32/AsyncElegantOTA/src/AsyncElegantOTA.cpp",
+    "text": "if (!Update.begin((cmd == U_FS)?fsSize:maxSketchSpace, cmd)){ // Start with max available size",
+    "decision": "Pinned AsyncElegantOTA helper; ESP32Board.cpp:6 includes it only with ADMIN_PASSWORD and without DISABLE_WIFI_OTA (Repeater/Room). USB companion lab environment does not enable it. Binary guard also rejects MeshCore-OTA marker; dependency/framework audit remains out of scope."
+  },
+  {
+    "path": "arch/esp32/AsyncElegantOTA/src/AsyncElegantOTA.cpp",
+    "text": "if (!Update.begin(UPDATE_SIZE_UNKNOWN, cmd)) { // Start with max available size",
+    "decision": "Pinned AsyncElegantOTA helper; ESP32Board.cpp:6 includes it only with ADMIN_PASSWORD and without DISABLE_WIFI_OTA (Repeater/Room). USB companion lab environment does not enable it. Binary guard also rejects MeshCore-OTA marker; dependency/framework audit remains out of scope."
+  },
+  {
+    "path": "arch/esp32/AsyncElegantOTA/src/AsyncElegantOTA.cpp",
+    "text": "if (Update.write(data, len) != len) {",
+    "decision": "Pinned AsyncElegantOTA helper; ESP32Board.cpp:6 includes it only with ADMIN_PASSWORD and without DISABLE_WIFI_OTA (Repeater/Room). USB companion lab environment does not enable it. Binary guard also rejects MeshCore-OTA marker; dependency/framework audit remains out of scope."
   }
 ]

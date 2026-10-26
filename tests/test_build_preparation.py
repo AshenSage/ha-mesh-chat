@@ -84,3 +84,34 @@ def test_r2_p3_platform_metadata_comes_from_versioned_patch(tmp_path):
     patch.write_text("+platform = platformio/espressif32@latest\n")
     with pytest.raises(SystemExit, match="pinned Espressif"):
         builder.pinned_platform(patch)
+
+
+@pytest.mark.parametrize("call", ["Update.begin(size);", "Update.write(data, len);", "Update.writeStream(stream);",
+    "esp_ota_begin(partition, size, &handle);", "esp_ota_write(handle, data, size);",
+    "esp_ota_get_running_partition();", "spi_flash_erase_range(0, size);", "spi_flash_write(0, data, size);",
+    "esp_flash_erase_region(chip, 0, size);", "esp_flash_write(chip, data, 0, size);"])
+def test_n5_ota_and_direct_flash_calls_need_an_explicit_allowlist_entry(checkout, call):
+    source, _, _, _ = checkout
+    extra = source / "unreviewed.cpp"
+    extra.write_text(call + "\n")
+    subprocess.run(["git", "add", "unreviewed.cpp"], cwd=source, check=True)
+    with pytest.raises(SystemExit, match="Unreviewed filesystem call"):
+        builder.audit_filesystems(source)
+
+
+def test_n5_build_rejects_wifi_ota_marker_before_export(tmp_path, monkeypatch):
+    import sys
+    from types import SimpleNamespace
+    source = tmp_path / "source"
+    binary = source / ".pio/build" / builder.ENVIRONMENT / "firmware.bin"
+    binary.parent.mkdir(parents=True)
+    binary.write_bytes(b"\xe9mc_spiffs\0MeshCore-OTA\0")
+    output = tmp_path / "output"
+    monkeypatch.setattr(builder, "prepare", lambda *_, **__: None)
+    monkeypatch.setattr(builder, "pinned_platform", lambda: "platformio/espressif32@6.11.0")
+    monkeypatch.setattr(builder.subprocess, "run", lambda *_, **__: SimpleNamespace(returncode=0))
+    monkeypatch.setattr(sys, "argv", ["prepare_meshcore_usb.py", str(source), "--build", "--output", str(output)])
+    with pytest.raises(SystemExit, match="MeshCore-OTA marker"):
+        builder.main()
+    assert not (output / "meshcore-usb-lab.bin").exists()
+    builder.validate_image(b"\xe9mc_spiffs\0valid synthetic app")

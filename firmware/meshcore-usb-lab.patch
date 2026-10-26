@@ -115,3 +115,17 @@
 +spiffs,data,spiffs,0xBF0000,0x200000
 +mc_spiffs,data,spiffs,0xDF0000,0x200000
 +coredump,data,coredump,0xFF0000,0x10000
+--- a/examples/companion_radio/DataStore.cpp
++++ b/examples/companion_radio/DataStore.cpp
+@@ -173,9 +173,8 @@
+ #elif defined(RP2040_PLATFORM)
+   return LittleFS.format();
+ #elif defined(ESP32)
+-  bool fs_success = ((fs::SPIFFSFS *)_fs)->format();
+-  esp_err_t nvs_err = nvs_flash_erase(); // no need to reinit, will be done by reboot
+-  return fs_success && (nvs_err == ESP_OK);
++  // Lab build: format only the mounted mc_spiffs; preserve shared NVS.
++  return ((fs::SPIFFSFS *)_fs)->format();
+ #else
+   #error "need to implement format()"
+ #endif

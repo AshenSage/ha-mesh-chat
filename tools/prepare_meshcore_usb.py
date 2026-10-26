@@ -26,7 +26,9 @@ FILES = ROOT / "firmware/meshcore-source-files.json"
 AUDIT = ROOT / "firmware/meshcore-filesystem-allowlist.json"
 FS_CALL = re.compile(r"(?:SPIFFS|LittleFS)\s*\.\s*begin\s*\(|\.\s*format\s*\("
                      r"|\bnvs_flash_erase(?:_partition)?\s*\(|\besp_partition_(?:erase\w*|write\w*)\s*\("
-                     r"|\besp_vfs_\w*_register\s*\(|\besp_(?:spiffs|littlefs)_format\s*\(")
+                     r"|\besp_vfs_\w*_register\s*\(|\besp_(?:spiffs|littlefs)_format\s*\("
+                     r"|\bUpdate\s*\.\s*(?:begin|write)\w*\s*\(|\besp_ota_\w+\s*\("
+                     r"|\b(?:spi_flash|esp_flash)_(?:erase|write)\w*\s*\(")
 
 
 def audit_filesystems(source):
@@ -85,6 +87,13 @@ def pinned_platform(patch=PATCH):
     return values[0]
 
 
+def validate_image(image):
+    if b"MeshCore-OTA" in image:
+        raise SystemExit("Unexpected MeshCore-OTA marker: WiFi OTA is forbidden in the lab app")
+    if not image or len(image) > 0x460000 or image[0] != 0xE9 or b"mc_spiffs\0" not in image:
+        raise SystemExit("Unexpected or oversized app image")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path)
@@ -110,8 +119,7 @@ def main():
             raise SystemExit(f"Build failed; inspect {log}")
         binary = source / ".pio/build" / ENVIRONMENT / "firmware.bin"
         image = binary.read_bytes()
-        if not image or len(image) > 0x460000 or image[0] != 0xE9 or b"mc_spiffs\0" not in image:
-            raise SystemExit("Unexpected or oversized app image")
+        validate_image(image)
         args.output.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(binary, args.output / "meshcore-usb-lab.bin")
         for license_path in source.iterdir():
@@ -124,7 +132,7 @@ def main():
                     "build_finished_utc": datetime.now(timezone.utc).isoformat(),
                     "build_log_sha256": hashlib.sha256(log.read_bytes()).hexdigest(), "sha256": hashlib.sha256(image).hexdigest(),
                     "size": len(image), "flash_offset": "0x220000", "hardware_validated": False,
-                    "patches": ["isolated mc_spiffs mount", "lab partition table", "USB companion",
+                    "patches": ["factory reset preserves shared NVS", "isolated mc_spiffs mount", "lab partition table", "USB companion",
                                 "headless: OLED UI omitted", "external sensors/GPS omitted for bench proof"]}
         (args.output / "meshcore-build.json").write_text(json.dumps(metadata, indent=2) + "\n")
     print("Prepared experimental USB source. Hardware validation remains pending.")

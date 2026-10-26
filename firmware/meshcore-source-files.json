@@ -10,5 +10,9 @@
   "partitions_mesh_chat_lab.csv": {
     "original": null,
     "prepared": "2d8ced3c73469763eed070eb592334c245a6e3c4bb1924a76ff1276fa19b42cd"
+  },
+  "examples/companion_radio/DataStore.cpp": {
+    "original": "a2f6bdd542c281a688d4d508904ff00780412e5bc6f52ecb214afd965a35d4f9",
+    "prepared": "923ab209059641c5663e412262a984fe373ab12a12d9d8e3dc22d3f82f78d421"
   }
 }
