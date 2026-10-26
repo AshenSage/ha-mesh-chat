@@ -329,6 +329,13 @@ def probe(network, configured, registry):
     return asyncio.run(probe_meshcore(port)) if network == "meshcore" else probe_meshtastic(port)
 
 
+def profile_summary(profile):
+    """Bounded report fields; full contact fingerprints stay in the registry."""
+    fields = ("network", "identity_sha256", "radio_sha256", "channels_sha256", "settings_sha256",
+              "name", "version", "evidence", "contacts_count")
+    return {key: profile[key] for key in fields if key in profile}
+
+
 def compare_profile(observed, baseline):
     keys = ["network", "identity_sha256"]
     if baseline.get("network") == "meshcore":
@@ -559,7 +566,7 @@ def run(action, configured, data, network=None, *, board_confirmed=False, allow_
             "evidence": {"protocol": before["evidence"], "identity_sha256": before["identity_sha256"],
                          "captured_at": time.time()}}
         save_json(data / "registry.json", registry)
-        return {"status": "baseline_verified", **before}
+        return {"status": "baseline_verified", **profile_summary(before)}
     if active not in registry["profiles"]:
         raise LabError("Capture the current firmware baseline before the first switch")
     compare_profile(before, registry["profiles"][active])
@@ -589,7 +596,7 @@ def run(action, configured, data, network=None, *, board_confirmed=False, allow_
         mark_selection(data, "verified")
     return {"status": "switch_verified" if changed else "already_selected_verified",
             "from": active, "to": network, "selection_written": changed,
-            "runtime_checks": 2, "profile_verified": True, **repeated}
+            "runtime_checks": 2, "profile_verified": True, **profile_summary(repeated)}
 
 
 def main():

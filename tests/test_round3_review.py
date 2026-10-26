@@ -8,6 +8,7 @@ import pytest
 
 from lab import diagnostics, worker
 from lab.layout import LabError, digest
+from test_run_orchestration import setup_run  # shared FakeRadio/run fixture
 
 
 @pytest.fixture
@@ -72,3 +73,24 @@ def test_n1_old_contact_fingerprint_baselines_demand_recapture(meshcore_contacts
         baseline.pop("contacts_schema" if damage == "missing_schema" else "contacts_meta_sha256")
     with pytest.raises(LabError, match="Baseline neu erfassen"):
         worker.compare_profile(observed, baseline)
+
+
+
+def test_n2_reports_omit_contacts_but_registry_and_comparison_retain_them(setup_run, meshcore_contacts):
+    s = setup_run
+    _, probe = meshcore_contacts
+    full = probe()
+    s.registry["profiles"]["meshcore"] = full
+    worker.save_json(s.data / "registry.json", s.registry)
+    s.observations.append(full)
+    baseline_result = s.run("meshcore", "baseline")
+    stored = worker.load_registry(s.data)["profiles"]["meshcore"]
+    assert len(stored["contacts_set"]) == 350
+    worker.compare_profile(full, stored)
+    s.observations.extend([full] * 4)
+    switch_result = s.run("meshcore")
+    for result in (baseline_result, switch_result):
+        assert result["contacts_count"] == 350
+        assert {k for k in result if k.startswith("contacts_")} == {"contacts_count"}
+        assert "contacts_set" not in json.dumps(result)
+        assert len(json.dumps(result)) < 1500
