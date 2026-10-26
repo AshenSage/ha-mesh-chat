@@ -577,7 +577,8 @@ def run(action, configured, data, network=None, *, board_confirmed=False, allow_
         raise LabError("Current boot selection is unconfirmed")
     if action == "verify_selection" and active != network:
         raise LabError("Journal target is not currently selected; no write attempted")
-    # The runtime handshake below, not selected_slot, establishes running firmware.
+    # The handshake identifies the responding protocol. Attributing that runtime
+    # to selected_slot depends on the external A5 bootloader/selector proof.
     time.sleep(3)
     phase("probe_before")
     before = probe(active, configured, registry)

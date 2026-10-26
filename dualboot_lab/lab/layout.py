@@ -48,6 +48,12 @@ def app_project(header):
 
 
 def verify_slot_projects(read_flash):
+    """Reject conflicting non-generic descriptors, not attest runtime slot identity.
+
+    Empty/arduino-lib-builder names carry no slot evidence. For these images
+    require_slot_attestations is the operative guard; protocol N answering while
+    otadata selects S does not itself prove S ran. That attribution requires A5.
+    """
     projects = {}
     for network, slot in NETWORKS.items():
         address = next(row[3] for row in EXPECTED if row[0] == f"ota_{slot}")

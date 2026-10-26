@@ -23,7 +23,7 @@ The first read-only inspection reports esptool `get_psram_cap()` and chip featur
 
 Run **USB und Layout prüfen**. This enters ROM/stub mode, reads the chip, JEDEC flash size, partition table and boot metadata, then resets the radio. It interrupts reception even though it does not write flash. A fresh/single-firmware board is expected to report an unsupported layout. No installation or erase happens automatically.
 
-Slot identity is bound to two successful manual-boot USB baseline attestations and the exact hashes of both app slots. Generic `arduino-lib-builder` descriptors are permitted only with those attestations; a non-generic conflicting project name still blocks. Attestation checks run in the first inspect session, before runtime probes or a second ROM session. This software evidence does not replace A5's actual bootloader proof.
+The two manual-boot USB baseline attestations bind observed protocol responses to the OTA selection and unchanged hashes of both app slots. They prove only "protocol N responded while otadata selected slot S", not "slot S actually ran"; that attribution remains dependent on the external manual A5 proof. Empty and generic `arduino-lib-builder` descriptors provide no independent slot identity. They are permitted only with those attestations; a non-generic conflicting project name still blocks. Attestation checks run in the first inspect session, before runtime probes or a second ROM session. This software evidence does not replace A5's actual bootloader proof.
 
 ## 2. Prepare firmware once, before the lab switching test
 

@@ -4,6 +4,8 @@
 
 Question: does the exact external bootloader select the requested runtime from OTA data alone, or can selector NVS override it? Merely reading OTA data back does not answer this. The reference source and prebuilt bootloader do not establish equivalent provenance.
 
+Attestation limit (N6): a lab baseline proves only **"protocol N responded while otadata selected slot S"**, not **"slot S actually ran"**. The selector/bootloader may override that selection, which is exactly what A5 must independently establish. Generic or empty project descriptors add no slot evidence. Matching app hashes freeze the bytes observed, not their actual execution. No fake, protocol response or registry record closes this hardware assumption.
+
 Future, separately authorised manual bench procedure (do not use the lab worker):
 
 1. Independently identify both manually booted USB runtimes with external tools (keep the lab stopped; no lab registry/attestation prerequisite), observe the real R2 PSRAM cap, verify the reference allowlist, preserve original flash, record the written bootloader readback hash, and configure both test identities. Identify the physical board and both runtimes independently.
