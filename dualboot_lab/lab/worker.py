@@ -461,16 +461,18 @@ def prune_snapshots(data, reason):
     # Commit an audit record before removal. Unknown/orphan files are untouched.
     save_json(data / ("snapshot-prune-" + uuid.uuid4().hex + ".json"),
               {"reason": reason, "time": time.time(), "candidates": candidates})
+    registry["previous_backups"] = [point for point in registry["previous_backups"]
+                                    if point["backup"] not in candidates]
+    registry["retention_pending"] = retention_candidates(registry)
+    # Make references durable first. An interrupted unlink can leave orphan
+    # files (listed in the audit), never new references to deleted snapshots.
+    save_json(data / "registry.json", registry)
     deleted = []
     for name in candidates:
         path = data / name
         if path.is_file():
             path.unlink()
             deleted.append(name)
-    registry["previous_backups"] = [point for point in registry["previous_backups"]
-                                    if point["backup"] not in candidates]
-    registry["retention_pending"] = retention_candidates(registry)
-    save_json(data / "registry.json", registry)
     return {"status": "snapshot_retention_acknowledged", "deleted": deleted}
 
 

@@ -172,3 +172,40 @@ def test_n4_1200_real_snapshot_helpers_with_pruning_remain_flat_and_protect_reco
         assert all("previous_backup" not in p for p in registry["previous_backups"])
     assert len((tmp_path / "registry.json").read_bytes()) < 2500
     assert len(json.loads((tmp_path / "registry.json").read_text())["previous_backups"]) == 2
+
+
+@pytest.mark.parametrize("failure", ["registry_save", "after_registry_save", "unlink"])
+def test_final_p3_prune_commits_registry_before_any_snapshot_deletion(tmp_path, monkeypatch, failure):
+    from pathlib import Path
+    names = [f"flash-{index}.bin" for index in range(5)]
+    for name in names:
+        (tmp_path / name).write_bytes(b"synthetic recovery point")
+    state = {"backup": names[-1], "enrol_backup": {"backup": names[0]},
+             "previous_backups": [{"backup": name} for name in reversed(names[:-1])]}
+    registry_path = tmp_path / "registry.json"
+    worker.save_json(registry_path, state)
+    original_save, original_unlink = worker.save_json, Path.unlink
+    def save(path, value):
+        if path == registry_path and failure == "registry_save":
+            raise OSError("simulated registry save failure")
+        original_save(path, value)
+        if path == registry_path and failure == "after_registry_save":
+            raise OSError("simulated interruption after durable registry replacement")
+    def unlink(path, *args, **kwargs):
+        if path.name in names[1:3] and failure == "unlink":
+            # A file deletion failure must already see the updated registry.
+            assert [p["backup"] for p in worker.load_registry(tmp_path)["previous_backups"]] == [names[3], names[0]]
+            raise OSError("simulated unlink interruption")
+        return original_unlink(path, *args, **kwargs)
+    monkeypatch.setattr(worker, "save_json", save)
+    monkeypatch.setattr(Path, "unlink", unlink)
+    with pytest.raises(OSError, match="simulated"):
+        worker.prune_snapshots(tmp_path, "retention_reviewed")
+    # All files still exist; every remaining registry reference is valid.
+    assert all((tmp_path / name).is_file() for name in names)
+    stored = worker.load_registry(tmp_path)
+    expected = list(reversed(names[:-1])) if failure == "registry_save" else [names[3], names[0]]
+    assert [p["backup"] for p in stored["previous_backups"]] == expected
+    assert stored["enrol_backup"]["backup"] == names[0] and stored["backup"] == names[-1]
+    audit = json.loads(next(tmp_path.glob("snapshot-prune-*.json")).read_text())
+    assert audit["candidates"] == names[1:3]
