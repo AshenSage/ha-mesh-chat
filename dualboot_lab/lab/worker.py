@@ -265,13 +265,22 @@ async def probe_meshcore(port):
             raise LabError("Incomplete MeshCore contact read")
         peers = sorted([{k: peer.get(k) for k in ("public_key", "adv_name", "type", "flags")}
                         for peer in contacts.payload.values()], key=lambda peer: str(peer["public_key"]))
-        contact_set = sorted({digest(json.dumps(peer, sort_keys=True).encode()) for peer in peers})
+        try:
+            for peer in peers:
+                key = peer["public_key"]
+                if not isinstance(key, str) or len(key) != 64:
+                    raise ValueError("invalid key length")
+                peer["public_key"] = bytes.fromhex(key).hex()
+        except (TypeError, ValueError) as exc:
+            raise LabError("Incomplete MeshCore contacts_set (invalid public key)") from exc
+        contact_set = sorted({digest(bytes.fromhex(peer["public_key"])) for peer in peers})
         if len(contact_set) != len(peers):
             raise LabError("Incomplete MeshCore contacts_set (duplicates)")
         return {"network": "meshcore", "identity_sha256": digest(bytes.fromhex(public)),
                 "radio_sha256": digest(json.dumps(stable, sort_keys=True).encode()),
                 "channels_sha256": digest(json.dumps(channels, sort_keys=True).encode()),
-                "contacts_count": len(contact_set), "contacts_set": contact_set,
+                "contacts_count": len(contact_set), "contacts_set": contact_set, "contacts_schema": 2,
+                "contacts_meta_sha256": digest(json.dumps(peers, sort_keys=True).encode()),
                 "name": info.get("name", ""), "evidence": "USB SELF_INFO"}
     finally:
         await mc.disconnect()
@@ -323,9 +332,9 @@ def probe(network, configured, registry):
 def compare_profile(observed, baseline):
     keys = ["network", "identity_sha256"]
     if baseline.get("network") == "meshcore":
-        required = ("radio_sha256", "channels_sha256", "contacts_count", "contacts_set")
+        required = ("radio_sha256", "channels_sha256", "contacts_count", "contacts_set", "contacts_meta_sha256")
         for record in (baseline, observed):
-            if any(key not in record for key in required):
+            if record.get("contacts_schema") != 2 or any(key not in record for key in required):
                 raise LabError("Baseline neu erfassen: MeshCore component fingerprints missing")
             members = record["contacts_set"]
             if (not isinstance(members, list) or any(not isinstance(x, str) for x in members)
@@ -335,6 +344,8 @@ def compare_profile(observed, baseline):
         keys += ["radio_sha256", "channels_sha256"]
         if not set(baseline["contacts_set"]).issubset(observed["contacts_set"]):
             raise LabError("Profile changed (contacts_set): baseline contact missing")
+        if baseline["contacts_meta_sha256"] != observed["contacts_meta_sha256"]:
+            diagnostics.warning("meshcore_contacts_meta_changed")
     else:
         keys += ["settings_sha256"]
     for key in keys:

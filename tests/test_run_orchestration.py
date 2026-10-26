@@ -18,7 +18,8 @@ def profile(network):
     value = {"network": network, "identity_sha256": network + "-key",
              "settings_sha256": network + "-settings", "evidence": "fake protocol"}
     if network == "meshcore":
-        value.update(radio_sha256="radio", channels_sha256="channels", contacts_count=1, contacts_set=["peer"])
+        value.update(radio_sha256="radio", channels_sha256="channels", contacts_count=1, contacts_set=["peer"],
+                     contacts_schema=2, contacts_meta_sha256="meta")
     return value
 
 

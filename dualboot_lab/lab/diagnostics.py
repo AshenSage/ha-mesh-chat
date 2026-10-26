@@ -23,7 +23,7 @@ def phase(name):
         SINK({"type": "phase", "phase": name})
 
 
-WARNINGS = {"selector_nvs_changed_unvalidated"}
+WARNINGS = {"selector_nvs_changed_unvalidated", "meshcore_contacts_meta_changed"}
 
 
 def warning(code):
