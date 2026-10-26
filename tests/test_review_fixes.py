@@ -467,7 +467,7 @@ def test_r2_3_snapshot_chain_retention_never_automatically_deletes(tmp_path, mon
         registry = worker.snapshot(radio, tmp_path, registry)
         names.append(registry["backup"])
         if previous:
-            assert registry["previous_backup"]["backup"] == previous
+            assert registry["previous_backups"][0]["backup"] == previous
     assert all((tmp_path / name).exists() for name in names)
     assert set(worker.retention_candidates(registry)) == set(names[1:3])
     assert registry["enrol_backup"]["backup"] == names[0]

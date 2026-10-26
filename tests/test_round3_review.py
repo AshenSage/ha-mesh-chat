@@ -127,3 +127,48 @@ def test_n3_transition_rechecks_journal_mac_after_probes(setup_run, monkeypatch)
         s.run("meshcore", "verify_selection")
     assert json.loads(path.read_text()) == {"status": "written", "target": "meshcore", "mac": "other"}
     assert not s.calls
+
+
+
+def test_n4_legacy_backup_links_are_flattened_on_load_and_next_save(tmp_path):
+    chain = None
+    for index in range(40):
+        chain = {"backup": f"flash-{index}.bin", "backup_sha256": str(index), "previous_backup": chain}
+    original = {"backup": "flash-0.bin", "previous_backup": None}
+    worker.save_json(tmp_path / "registry.json", {"backup": "flash-current.bin", "previous_backup": chain,
+                                                "enrol_backup": original})
+    registry = worker.load_registry(tmp_path)
+    assert "previous_backup" not in registry
+    assert [p["backup"] for p in registry["previous_backups"]] == [f"flash-{i}.bin" for i in reversed(range(40))]
+    assert all("previous_backup" not in p for p in registry["previous_backups"])
+    assert registry["enrol_backup"] == {"backup": "flash-0.bin"}
+    worker.save_json(tmp_path / "registry.json", registry)
+    assert '"previous_backup":' not in (tmp_path / "registry.json").read_text()
+    assert worker.load_registry(tmp_path) == registry
+
+
+def test_n4_1200_real_snapshot_helpers_with_pruning_remain_flat_and_protect_recovery(tmp_path, monkeypatch):
+    import hashlib
+    from test_dualboot_lab import table
+    image = b"\xff" * 0x8000 + table()
+    monkeypatch.setattr(worker, "FLASH_SIZE", len(image))
+    radio = SimpleNamespace(esp=SimpleNamespace(read_flash=lambda *_: image,
+                            flash_md5sum=lambda *_: hashlib.md5(image).hexdigest()))
+    registry = {"profiles": {}}
+    names = []
+    for index in range(1200):
+        registry = worker.snapshot(radio, tmp_path, registry)
+        names.append(registry["backup"])
+        if index % 10 == 9:
+            worker.prune_snapshots(tmp_path, "retention_reviewed")
+            registry = worker.load_registry(tmp_path)
+            protected = {names[0], *names[-2:]}
+            assert {p.name for p in tmp_path.glob("flash-*.bin")} == protected
+            assert registry["enrol_backup"]["backup"] == names[0]
+            assert registry["previous_backups"][0]["backup"] == names[-2]
+            assert len(registry["previous_backups"]) == 2
+            assert not worker.retention_candidates(registry)
+        assert "previous_backup" not in registry
+        assert all("previous_backup" not in p for p in registry["previous_backups"])
+    assert len((tmp_path / "registry.json").read_bytes()) < 2500
+    assert len(json.loads((tmp_path / "registry.json").read_text())["previous_backups"]) == 2

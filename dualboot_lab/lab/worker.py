@@ -364,7 +364,7 @@ def load_registry(data):
     path = data / "registry.json"
     if not path.exists():
         raise LabError("Enrol and back up the prepared dualboot board first")
-    return json.loads(path.read_text())
+    return flatten_backup_history(json.loads(path.read_text()))
 
 
 ACK_REASONS = ("manual_recovery_checked", "abandoned_after_inspection")
@@ -417,16 +417,36 @@ def mark_selection(data, status, *, expected_mac=None, expected_target=None):
 
 
 def recovery_point(registry):
-    return {key: registry[key] for key in ("backup", "backup_sha256", "backup_flash_md5", "snapshot_at", "previous_backup")
+    return {key: registry[key] for key in ("backup", "backup_sha256", "backup_flash_md5", "snapshot_at")
             if key in registry}
 
 
+def flatten_backup_history(registry):
+    """Migrate legacy links iteratively; never keep a recursive recovery record."""
+    updated = dict(registry)
+    points = list(registry.get("previous_backups", []))
+    legacy = updated.pop("previous_backup", None)
+    while legacy:
+        points.append(recovery_point(legacy))
+        legacy = legacy.get("previous_backup")
+    seen = {registry.get("backup")}
+    previous = []
+    for point in points:
+        point = recovery_point(point)
+        name = point.get("backup")
+        if name and name not in seen:
+            previous.append(point)
+            seen.add(name)
+    updated["previous_backups"] = previous
+    original = registry.get("enrol_backup") or (previous[-1] if previous else recovery_point(registry))
+    updated["enrol_backup"] = recovery_point(original)
+    return updated
+
+
 def retention_candidates(registry):
-    chain, point = [], recovery_point(registry)
-    while point.get("backup"):
-        chain.append(point["backup"])
-        point = point.get("previous_backup") or {}
-    protected = set(chain[:2]) | {registry.get("enrol_backup", {}).get("backup")}
+    registry = flatten_backup_history(registry)
+    chain = [registry.get("backup")] + [point["backup"] for point in registry["previous_backups"]]
+    protected = set(chain[:2]) | {registry["enrol_backup"].get("backup")}
     return sorted(set(chain) - protected)
 
 
@@ -435,22 +455,28 @@ def prune_snapshots(data, reason):
         raise LabError("Explicit retention_reviewed acknowledgement required")
     registry = load_registry(data)
     candidates = retention_candidates(registry)
+    for name in candidates:
+        if Path(name).name != name or not name.startswith("flash-") or not name.endswith(".bin"):
+            raise LabError("Invalid snapshot reference; no files removed")
     # Commit an audit record before removal. Unknown/orphan files are untouched.
     save_json(data / ("snapshot-prune-" + uuid.uuid4().hex + ".json"),
               {"reason": reason, "time": time.time(), "candidates": candidates})
     deleted = []
     for name in candidates:
-        if Path(name).name != name or not name.startswith("flash-") or not name.endswith(".bin"):
-            raise LabError("Invalid snapshot reference; nothing further removed")
         path = data / name
         if path.is_file():
             path.unlink()
             deleted.append(name)
+    registry["previous_backups"] = [point for point in registry["previous_backups"]
+                                    if point["backup"] not in candidates]
+    registry["retention_pending"] = retention_candidates(registry)
+    save_json(data / "registry.json", registry)
     return {"status": "snapshot_retention_acknowledged", "deleted": deleted}
 
 
 def snapshot(radio, data, registry):
     """Read flash into a new recovery point; retain the old one on failure."""
+    registry = flatten_backup_history(registry)
     phase("snapshot")
     image = radio.esp.read_flash(0, FLASH_SIZE)
     if len(image) != FLASH_SIZE:
@@ -470,11 +496,8 @@ def snapshot(radio, data, registry):
                "backup_flash_md5": flash_md5,
                "snapshot_at": time.time(), "snapshot_profiles": sorted(registry.get("profiles", {}))}
     previous = recovery_point(registry)
-    updated["previous_backup"] = previous or None
-    oldest = previous
-    while oldest.get("previous_backup"):
-        oldest = oldest["previous_backup"]
-    updated["enrol_backup"] = registry.get("enrol_backup") or oldest or recovery_point(updated)
+    updated["previous_backups"] = ([previous] if previous.get("backup") else []) + registry["previous_backups"]
+    updated["enrol_backup"] = registry["enrol_backup"] or recovery_point(updated)
     updated["retention_pending"] = retention_candidates(updated)
     save_json(data / "registry.json", updated)
     return updated

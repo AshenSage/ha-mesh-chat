@@ -234,3 +234,9 @@ Executed: `python -m pytest -q` — 120 passed in 0.85s; `git diff --check` pass
 Rechecked current verify_selection entry/first inspect/final mark_selection after N1/N2 shifts. Journal MAC must exist and match the inspected device before any protocol probe. The final transition rereads the journal and rechecks MAC and target, preventing a replaced journal from being verified. Tests cover foreign/missing MAC with byte-identical journal/no probes/no select, replacement during the second probe, and retained matching-MAC success from the updated R2-6 test. Exact commands: ../mesh-lab-venv/bin/python -m pytest -q; git diff --check. No serial ports, device/flash/reset/reboot operations or hardware validation.
 
 Executed: `python -m pytest -q` — 123 passed in 1.03s; `git diff --check` passed. No device operations.
+
+## N4 — flatten legacy snapshot history and remove pruned metadata references
+
+Rechecked load_registry/recovery_point/snapshot/prune at current shifted lines. History is now flat previous_backups (newest first); iterative load migration strips legacy nested previous_backup links including enrol metadata. Next registry write persists the flat representation. Prune validates names before deletion, preserves the original/latest two, then removes expired references as well as files. Tests run 1200 actual snapshot/save_json helper iterations on a 36-KiB fake flash image, pruning every ten snapshots, verify protected files and bounded flat registry; separate test covers old nested migration/order/idempotence. First test invocation exposed a test-string quoting SyntaxError, corrected before the passing runs. Exact commands: ../mesh-lab-venv/bin/python -m pytest -q (125 passed after correction); git diff --check. No ports, real flash/device/reset/reboot operations or hardware validation; snapshots are synthetic local files only.
+
+Executed: `python -m pytest -q` — 125 passed in 4.29s; `git diff --check` passed. No device operations.
