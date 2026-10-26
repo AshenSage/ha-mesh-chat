@@ -228,3 +228,9 @@ Executed: `python -m pytest -q` — 119 passed in 1.01s; `git diff --check` pass
 Rechecked current probe fields and both run() result expansions (**before/**repeated, shifted after N1). Added an explicit profile-summary allowlist for baseline/switch results; contacts_count is the only exported contact field. Full key-set/schema/metadata remain in the private registry and comparison. Test uses 350 fake contacts, exercises actual run baseline and no-op switch result paths, verifies bounded JSON without contacts_set and full persisted registry/comparison. Exact commands: ../mesh-lab-venv/bin/python -m pytest -q; git diff --check. No ports, device/flash/reset/reboot operations or hardware claims.
 
 Executed: `python -m pytest -q` — 120 passed in 0.85s; `git diff --check` passed. No device operations.
+
+## N3 — bind verification retries to the inspected device and recheck journal MAC
+
+Rechecked current verify_selection entry/first inspect/final mark_selection after N1/N2 shifts. Journal MAC must exist and match the inspected device before any protocol probe. The final transition rereads the journal and rechecks MAC and target, preventing a replaced journal from being verified. Tests cover foreign/missing MAC with byte-identical journal/no probes/no select, replacement during the second probe, and retained matching-MAC success from the updated R2-6 test. Exact commands: ../mesh-lab-venv/bin/python -m pytest -q; git diff --check. No serial ports, device/flash/reset/reboot operations or hardware validation.
+
+Executed: `python -m pytest -q` — 123 passed in 1.03s; `git diff --check` passed. No device operations.

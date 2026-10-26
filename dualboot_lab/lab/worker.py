@@ -398,9 +398,18 @@ def acknowledge_journal(data, reason):
             "hardware_validated": False}
 
 
-def mark_selection(data, status):
+def require_journal_device(journal, mac):
+    if not journal.get("mac") or journal["mac"] != mac:
+        raise LabError("Selection journal MAC mismatch or missing; preserve journal and inspect device")
+
+
+def mark_selection(data, status, *, expected_mac=None, expected_target=None):
     path = data / "last-selection.json"
     state = json.loads(path.read_text())
+    if expected_mac is not None:
+        require_journal_device(state, expected_mac)
+        if state.get("target") != expected_target:
+            raise LabError("Selection journal target changed during verification")
     required = "pending" if status == "written" else "written"
     if state.get("status") != required or status not in ("written", "verified"):
         raise LabError("Invalid boot-selection journal transition")
@@ -535,6 +544,8 @@ def run(action, configured, data, network=None, *, board_confirmed=False, allow_
     with Radio(usb["device"]) as radio:
         current = radio.inspect()
         require_same_device(current, registry)
+        if action == "verify_selection":
+            require_journal_device(journal, current["mac"])
         if action in ("switch", "verify_selection"):
             require_slot_attestations(current, registry)
             verify_slot_projects(radio.esp.read_flash)
@@ -575,7 +586,7 @@ def run(action, configured, data, network=None, *, board_confirmed=False, allow_
     phase("probe_before")
     compare_profile(probe(active, configured, registry), before)
     if action == "verify_selection":
-        mark_selection(data, "verified")
+        mark_selection(data, "verified", expected_mac=current["mac"], expected_target=network)
         return {"status": "already_selected_verified", "from": active, "to": network,
                 "selection_written": False, "runtime_checks": 2, "profile_verified": True}
     usb = resolve_port(configured, registry)

@@ -50,7 +50,7 @@ def setup_run(tmp_path, monkeypatch):
             calls.append(network)
             changed = network != "meshcore"
             if changed:
-                worker.save_json(data / "last-selection.json", {"status": "written", "target": network})
+                worker.save_json(data / "last-selection.json", {"status": "written", "target": network, "mac": info["mac"]})
             return changed
     def probe(network, *_):
         value = observations.pop(0) if observations else profile(network)
@@ -206,7 +206,7 @@ def test_r2_5_acknowledgement_preserves_original_without_device(tmp_path, monkey
 @pytest.mark.parametrize("case", ["success", "probe_failure", "wrong_target", "pending"])
 def test_r2_6_verification_retry_never_writes_and_closes_only_matching_written_journal(setup_run, case):
     s = setup_run
-    state = {"status": "pending" if case == "pending" else "written", "target": "meshcore",
+    state = {"status": "pending" if case == "pending" else "written", "target": "meshcore", "mac": "mac",
              "otadata_hex": "preserve"}
     if case == "wrong_target":
         state["target"] = "meshtastic"

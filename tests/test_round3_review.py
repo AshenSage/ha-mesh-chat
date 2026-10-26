@@ -94,3 +94,36 @@ def test_n2_reports_omit_contacts_but_registry_and_comparison_retain_them(setup_
         assert {k for k in result if k.startswith("contacts_")} == {"contacts_count"}
         assert "contacts_set" not in json.dumps(result)
         assert len(json.dumps(result)) < 1500
+
+
+@pytest.mark.parametrize("mac", ["ff:ff:other-board", None])
+def test_n3_foreign_or_missing_journal_mac_blocks_before_probe_and_preserves_bytes(setup_run, mac):
+    s = setup_run
+    journal = {"status": "written", "target": "meshcore", "otadata_hex": "preserve original"}
+    if mac is not None:
+        journal["mac"] = mac
+    path = s.data / "last-selection.json"
+    worker.save_json(path, journal)
+    before = path.read_bytes()
+    s.observations.append(AssertionError("probe must not be called after foreign journal"))
+    with pytest.raises(LabError, match="journal MAC"):
+        s.run("meshcore", "verify_selection")
+    assert path.read_bytes() == before and not s.calls and len(s.observations) == 1
+
+
+def test_n3_transition_rechecks_journal_mac_after_probes(setup_run, monkeypatch):
+    from test_run_orchestration import profile
+    s = setup_run
+    path = s.data / "last-selection.json"
+    worker.save_json(path, {"status": "written", "target": "meshcore", "mac": "mac"})
+    calls = []
+    def probe(*_):
+        calls.append(True)
+        if len(calls) == 2:
+            worker.save_json(path, {"status": "written", "target": "meshcore", "mac": "other"})
+        return profile("meshcore")
+    monkeypatch.setattr(worker, "probe", probe)
+    with pytest.raises(LabError, match="journal MAC"):
+        s.run("meshcore", "verify_selection")
+    assert json.loads(path.read_text()) == {"status": "written", "target": "meshcore", "mac": "other"}
+    assert not s.calls
