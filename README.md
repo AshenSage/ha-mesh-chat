@@ -12,7 +12,7 @@
 
 > **Current focus: prove USB dualboot in Home Assistant.** An experimental HAOS app (add-on) and software tests are now included. Hardware stability is **not yet validated**. The full chat product is deferred until this foundation is reproducible.
 
-> **Post-review readiness:** generic `arduino-lib-builder` descriptors now require both manually booted USB runtime baselines, bound to unchanged slot/app hashes. No switch creates a new baseline. The manual bootloader/OTA hypothesis, actual R2 cap observation, filesystem power-cut durability and HAOS access/USB checks are still NOT RUN. This branch is ready for software review, **not cleared for a first flash or unattended rounds**. See the [per-point fix/test record](docs/review-fixes.md).
+> **Post-review readiness:** generic `arduino-lib-builder` descriptors now require both manually booted USB runtime baselines, bound to unchanged slot/app hashes. No switch creates a new baseline. The manual bootloader/OTA hypothesis, actual R2 cap observation, filesystem power-cut durability and HAOS access/USB checks are still NOT RUN. The independent software review is complete (2026-10-26, no remaining P1/P2). Hardware gates remain open: **not cleared for lab switches or unattended rounds**. See the [per-point fix/test record](docs/review-fixes.md).
 
 ## Start here: Dualboot Lab
 

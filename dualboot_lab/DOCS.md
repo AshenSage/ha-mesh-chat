@@ -164,3 +164,6 @@ Journal semantics: **pending means the write may have begun**, including partial
 
 
 N2 report boundary: full MeshCore contact-key membership and contact metadata fingerprints stay in the private registry and in-memory comparison. Worker baseline/switch results use an explicit summary allowlist: only contacts_count is exported for contacts. No contacts_set list is copied into step results or status polls; comparison still uses the full private baseline.
+
+
+Software review completed on 2026-10-26 with no remaining P1/P2 findings. The final P3 notes are handled by durable-registry-before-unlink pruning and a hardware-test-plan entry for the Arduino NVS init fallback. The official Arduino 2.0.17 framework can erase the first NVS partition on NO_FREE_PAGES/NEW_VERSION_FOUND; our factory-reset patch does not prevent that separate path. Actual trigger/impact are NOT RUN and belong in the [shared-NVS comparison](../docs/dualboot-proof.md#arduino-core-nvs-auto-erase-assumption--not-run). Before round tests, also verify full contact capacity (350), power-cut/formatOnFail, actual stop/reset latency and second-board recovery. This software milestone is not hardware clearance.

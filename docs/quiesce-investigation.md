@@ -20,3 +20,6 @@ The audit also flags Update.begin/write, esp_ota calls and spi_flash/esp_flash e
 
 
 Audit coverage assumption (R2-P3-4): the storage-call audit reads only `git ls-files` paths ending in `.c`, `.cpp`, `.h`, or `.ino` within the pinned MeshCore checkout (including any tracked `lib/`). It excludes fetched/generated `.pio/libdeps`, PlatformIO frameworks/toolchains, other extensions, generated code and indirect calls hidden behind unrecognised wrappers. Exact dependency pins improve provenance but do not prove those components avoid shared-NVS/storage writes. No whole-program or transitive filesystem-isolation claim is made. A broader review and actual NVS/power-cut observations remain required.
+
+
+Final P3 source check: Arduino ESP32 2.0.17 initArduino has an NVS recovery erase on NO_FREE_PAGES/NEW_VERSION_FOUND, outside this tracked-source audit. It targets the first NVS partition (shared nvs in this table). Removing DataStore's explicit factory-reset erase does not remove this framework path. Track it in the [B5 hardware comparison](dualboot-proof.md#arduino-core-nvs-auto-erase-assumption--not-run); occurrence/impact on the actual board remain NOT RUN. No additional firmware patch is introduced for this unmeasured risk.

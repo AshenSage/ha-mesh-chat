@@ -1,6 +1,6 @@
 # Milestone 0: reproducible Home Assistant dualboot
 
-**Decision: 2026-10-25. Status: implementation prepared; hardware gate NOT PASSED.**
+**Decision: 2026-10-25. Software review completed: 2026-10-26. Hardware gate NOT PASSED.**
 
 Make this the core of the repository. Prove the boot/control/storage foundation before investing in the chat product. The later requirements remain recorded but deferred.
 
@@ -16,8 +16,8 @@ Use the [lab instructions](../dualboot_lab/DOCS.md). The experimental transport 
 
 1. Identify the board and host, establish USB/ROM access, preserve its original flash and prepare the compatible isolated layout and USB app builds.
 2. Independently confirm both runtimes and record public identity, name, radio settings, channels and peer data. Start with test identities, not important production profiles.
-3. Enrol/back up the prepared board, capture the active protocol baseline, and execute one switch each way. First observation of a profile is baseline establishment, not proof of retention.
-4. Run 3 A→B→A rounds; diagnose failures before a longer run.
+3. Enrol/back up the prepared board and capture BOTH manually booted protocol baselines before any lab write. Only after A5, real R2-cap observation and original-backup/hash checks, execute one lab switch each way; no first switch creates a missing baseline.
+4. Before round tests, complete power-cut/formatOnFail, shared-NVS comparison (including the Arduino init fallback below and Meshtastic), actual stop/reset latency, full contact capacity (350), and second-board recovery gates. Then run 3 A→B→A rounds; diagnose failures before a longer run.
 5. Run 20 A→B→A rounds with unchanged hardware/builds on Proxmox/HAOS (amd64). No retries hidden from the report. After a failure/fix, record the new version and begin a fresh run.
 6. Repeat the same run on Raspberry Pi/HAOS (aarch64), including actual app installation and USB access. Architecture declarations/container builds alone do not pass this row.
 7. Exercise the lifecycle/error cases below. Recheck both profiles after each case.
@@ -42,9 +42,11 @@ All rows start **NOT RUN**. Do not infer a hardware pass from software tests, st
 | Graceful quiesce candidate | Independently verify protocol reboot/flush behaviour, completion evidence and subsequent ROM entry for each exact build; do not infer filesystem durability from command existence | NOT RUN |
 | USB interruption | Interrupt a bench attempt; report fails/interrupts, no blind retries; device can be inspected/recovered | NOT RUN |
 | Bad layout/device | Unsupported layout, wrong flash size, changed MAC/build and damaged snapshot block writes | NOT RUN |
-| Shared NVS namespace comparison | Read private 0x9000..0x19000 NVS dumps before/after BOTH directions; decode using a pinned offline NVS parser, compare namespaces/key names/types and value hashes. Explain legitimate firmware writes vs cross-firmware changes. Keep values/raw dumps private and record decoder version | NOT RUN |
+| Shared NVS namespace comparison | Read private 0x9000..0x19000 NVS dumps before/after BOTH directions; decode using a pinned offline NVS parser, compare namespaces/key names/types and value hashes. Explain legitimate firmware writes vs cross-firmware changes. Include the Arduino nvs_flash_init auto-erase fallback (NO_FREE_PAGES / NEW_VERSION_FOUND), preserve private boot diagnostics, and investigate any namespace loss. Keep values/raw dumps private and record decoder version | NOT RUN |
 | Ingress non-admin authorisation | On actual HAOS, verify admin access and rejection of a non-admin using both sidebar and copied direct Ingress URL; panel_admin by itself is not an authorisation proof | NOT RUN |
 | USB device-node lifecycle | On both real host targets, observe /dev nodes inside the running container through ROM/stub/runtime re-enumeration; verify uart/usb/udev mapping and native USB reset without protection-mode workarounds | NOT RUN |
+| Full MeshCore contact capacity (350) | With expendable peers at capacity, observe new adverts, rename/favourite changes and any key eviction; record retained/lost key counts and actual eviction policy. Metadata drift may warn; lost baseline keys must still stop the lab. Establish a reproducible preservation policy before round tests | NOT RUN |
+| Actual stop/reset latency | On HAOS with timeout: 30, measure add-on stop during inspect/write/reset and time until firmware actually runs, including forced-kill evidence; do not infer recovery from process exit | NOT RUN |
 | Recovery | Restore the CURRENT post-baseline snapshot to a second matching board with the original unavailable; verify both original identities, channel keys and profiles without regenerating keys; retain the original pre-installation dump too | NOT RUN |
 
 These are proposed engineering acceptance counts for this lab milestone, not claims of a statistically proven failure rate. If a test cannot be performed (e.g. no second host yet), keep it pending and state the narrower evidence.
@@ -72,6 +74,9 @@ Maximum observed switch/reconnect duration:
 Ordinary-operation button presses (must be zero to pass):
 Setup/recovery button presses (separate):
 Identity / selected settings / separate channel/contact checks:
+Contacts at capacity / additions / retained and evicted keys:
+Shared NVS before/after hashes / namespace comparison / Arduino fallback observed or unknown:
+Actual stop-to-exit / stop-to-running-firmware duration / forced kill:
 Lifecycle and negative cases exercised:
 Failures, recovery steps, and any changed software/build:
 JSON report attachment:
@@ -102,3 +107,10 @@ The audit also flags Update.begin/write, esp_ota calls and spi_flash/esp_flash e
 
 
 R2-8 stop acceptance — NOT RUN: on actual HAOS, stop the add-on during the write phase; measure Supervisor SIGTERM-to-exit and time until the board actually runs the expected firmware. Repeat in inspect/reset and retain phase/forced_kill evidence. Configuration sets Supervisor `timeout: 30` seconds (documented range 10–300); parent worker grace is 15 seconds and HTTP request shutdown is 2 seconds, leaving 13 seconds of scheduling/report margin. This is a configured budget, not proof of reset latency or guarantee against host-level SIGKILL. Standalone docker stop must explicitly use an equivalent stop timeout.
+
+
+## Arduino-core NVS auto-erase assumption — NOT RUN
+
+The official [arduino-esp32 2.0.17 esp32-hal-misc.c, initArduino](https://github.com/espressif/arduino-esp32/blob/2.0.17/cores/esp32/esp32-hal-misc.c#L249) calls nvs_flash_init. If it returns ESP_ERR_NVS_NO_FREE_PAGES or ESP_ERR_NVS_NEW_VERSION_FOUND, it finds the first NVS data partition without a label filter, erases that partition, then retries init. In our expected table the first NVS partition is the shared nvs at 0x9000; the lab's DataStore factory-reset patch does not change this framework path. This source behaviour is confirmed; whether the trigger occurs on the actual installation is untested.
+
+Include this in B5's before/after namespace/value-hash comparison for both firmwares and boot/power-cut cases. Preserve private boot diagnostics and actual namespace losses, without publishing keys. Use expendable profiles and verified backups for any separately authorised error-case experiment; never regenerate identities to conceal a loss. Installed framework/transitive behaviour and Meshtastic's side remain outside the tracked-source audit. No new firmware workaround or hardware pass is asserted here.
