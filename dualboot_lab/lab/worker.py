@@ -476,27 +476,46 @@ def prune_snapshots(data, reason):
     return {"status": "snapshot_retention_acknowledged", "deleted": deleted}
 
 
-def snapshot(radio, data, registry):
-    """Read flash into a new recovery point; retain the old one on failure."""
-    registry = flatten_backup_history(registry)
+def capture_flash(radio, data, *, prefix="flash-", require_lab_layout=True):
+    """Save verified bytes privately, without writing any device flash."""
     phase("snapshot")
     image = radio.esp.read_flash(0, FLASH_SIZE)
     if len(image) != FLASH_SIZE:
         raise LabError("Full flash backup is incomplete")
-    validate_table(image[TABLE_OFFSET:TABLE_OFFSET + SECTOR])
+    if require_lab_layout:
+        validate_table(image[TABLE_OFFSET:TABLE_OFFSET + SECTOR])
     flash_md5 = radio.esp.flash_md5sum(0, FLASH_SIZE)
     if hashlib.md5(image).hexdigest() != flash_md5:
         raise LabError("Full flash backup differs from device flash MD5")
-    path = data / ("flash-" + uuid.uuid4().hex + ".bin")
+    path = data / (prefix + uuid.uuid4().hex + ".bin")
     with private_open(path, binary=True) as stream:
         stream.write(image)
         stream.flush()
         os.fsync(stream.fileno())
     if digest(path.read_bytes()) != digest(image):
         raise LabError("Backup readback failed")
-    updated = {**registry, "backup": path.name, "backup_sha256": digest(image),
-               "backup_flash_md5": flash_md5,
-               "snapshot_at": time.time(), "snapshot_profiles": sorted(registry.get("profiles", {}))}
+    return {"backup": path.name, "backup_sha256": digest(image),
+            "backup_flash_md5": flash_md5, "backup_bytes": len(image), "snapshot_at": time.time()}
+
+
+def backup_current(radio, data, usb):
+    """Preserve a standalone or prepared board, without enrolling or restoring it."""
+    info = radio.inspect(strict=False)
+    point = capture_flash(radio, data, prefix="preparation-", require_lab_layout=False)
+    manifest = {**info, **point, "usb": usb, "kind": "preparation_full_flash",
+                "restore_hardware_validated": False}
+    # Separate, immutable records: never replace an enrolment or a previous
+    # preparation backup. An interrupted save can leave an orphan to preserve.
+    save_json(data / Path(point["backup"]).with_suffix(".json"), manifest)
+    return {"status": "preparation_backup_saved", **info, **point,
+            "restore_hardware_validated": False}
+
+
+def snapshot(radio, data, registry):
+    """Read flash into a new recovery point; retain the old one on failure."""
+    registry = flatten_backup_history(registry)
+    point = capture_flash(radio, data)
+    updated = {**registry, **point, "snapshot_profiles": sorted(registry.get("profiles", {}))}
     previous = recovery_point(registry)
     updated["previous_backups"] = ([previous] if previous.get("backup") else []) + registry["previous_backups"]
     updated["enrol_backup"] = registry["enrol_backup"] or recovery_point(updated)
@@ -506,7 +525,7 @@ def snapshot(radio, data, registry):
 
 
 def run(action, configured, data, network=None, *, board_confirmed=False, allow_boot_selection_write=False, reason=None):
-    if action != "inspect" and board_confirmed is not True:
+    if action not in ("inspect", "backup_current") and board_confirmed is not True:
         raise LabError("Explicit board confirmation is required")
     if action == "switch" and allow_boot_selection_write is not True:
         raise LabError("Explicit boot-selection write permission is required")
@@ -523,6 +542,9 @@ def run(action, configured, data, network=None, *, board_confirmed=False, allow_
             raise LabError("Verification requires a written journal for the requested target")
     registry = load_registry(data) if action in ("baseline", "switch", "resnapshot", "verify_selection") else None
     usb = resolve_port(configured, registry)
+    if action == "backup_current":
+        with Radio(usb["device"]) as radio:
+            return backup_current(radio, data, usb)
     if action == "resnapshot":
         if set(registry.get("profiles", {})) != set(NETWORKS):
             raise LabError("Both profile baselines are required before resnapshot")
@@ -616,8 +638,21 @@ def run(action, configured, data, network=None, *, board_confirmed=False, allow_
         return {"status": "already_selected_verified", "from": active, "to": network,
                 "selection_written": False, "runtime_checks": 2, "profile_verified": True}
     usb = resolve_port(configured, registry)
+    pre_switch_backup = None
     with Radio(usb["device"], board_confirmed=board_confirmed,
                allow_boot_selection_write=allow_boot_selection_write) as radio:
+        confirmed = radio.inspect()
+        require_same_device(confirmed, registry)
+        require_slot_attestations(confirmed, registry)
+        if confirmed["selected_slot"] != current["selected_slot"]:
+            raise LabError("Boot selection changed before pre-switch backup")
+        if active != network:
+            # Each actual transition, including every round-test leg, must
+            # durably save a fresh verified recovery point in this ROM session.
+            # Any read/hash/storage error exits before Radio.select can write.
+            registry = snapshot(radio, data, registry)
+            pre_switch_backup = {"snapshot_at": registry["snapshot_at"],
+                                 "backup_sha256": registry["backup_sha256"]}
         changed = radio.select(network, registry, data)
     # Bound the verification phase in the parent process too. No automatic
     # rollback/reflash/reboot retries if target does not answer.
@@ -633,12 +668,13 @@ def run(action, configured, data, network=None, *, board_confirmed=False, allow_
         mark_selection(data, "verified")
     return {"status": "switch_verified" if changed else "already_selected_verified",
             "from": active, "to": network, "selection_written": changed,
-            "runtime_checks": 2, "profile_verified": True, **profile_summary(repeated)}
+            "runtime_checks": 2, "profile_verified": True,
+            "pre_switch_backup": pre_switch_backup, **profile_summary(repeated)}
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=("inspect", "enrol", "baseline", "switch", "resnapshot", "acknowledge_journal", "verify_selection", "prune_snapshots", "ports"))
+    parser.add_argument("action", choices=("inspect", "backup_current", "enrol", "baseline", "switch", "resnapshot", "acknowledge_journal", "verify_selection", "prune_snapshots", "ports"))
     parser.add_argument("--reason", choices=ACK_REASONS + ("retention_reviewed",))
     parser.add_argument("--device", default="")
     parser.add_argument("--data", default="/data")

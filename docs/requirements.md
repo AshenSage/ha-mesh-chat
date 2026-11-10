@@ -101,6 +101,8 @@ A complete project backup includes both profiles' identity keys and identifiers,
 
 ### Accepted backup policy
 
+- Perform device/profile backup and recovery through Home Assistant on both target hosts; routine operation must not depend on moving the radio to a separate PC. Guided conversion/recovery remains a distinct workflow.
+- Before **every actual manual or automatic network transition**, durably synchronize available received messages into HA, capture a fresh verified recovery point for the current device/profile and commit the associated HA state. Do not change boot selection if synchronization, backup verification or durable storage fails. A daily backup or an earlier successful switch's snapshot does not satisfy this pre-switch requirement. An already-active target is not a transition.
 - Capture each profile after its first setup and after confirmed changes to identity, channels or settings; capture a verified recovery point before firmware updates.
 - Create a complete project backup daily and retain the latest **10 successful complete backup states per radio**. Failed attempts must not displace usable backups.
 - Include project data in regular HA backups and offer downloadable protected exports.
@@ -108,6 +110,8 @@ A complete project backup includes both profiles' identity keys and identifiers,
 - Use the inactive profile's last confirmed snapshot without forcing a network switch just to back it up. Display the capture time and completeness for each profile, plus the last successful complete backup.
 
 Ordinary firmware selection should retain isolated profile storage and commit HA state without reinstalling or restoring a full backup. Fault recovery and device replacement use a separate restore workflow.
+
+The user-visible sequence is **save current state → activate the other retained profile → verify its identity/settings → resume**. Both profiles remain on the radio; a switch must not overwrite either with an older snapshot. Backup restoration is used when conversion, damage or replacement requires it, with an explicit recovery status. The lab's raw device image is a recovery point, not a complete project backup: chat synchronization and associated HA application data remain later product work.
 
 For replacement, require another Heltec V4 of the same model and variant, validate its firmware, restore supported data, then read back and compare identity keys/identifiers. Reconcile queued and uncertain sends before resuming. Retire the old radio before activating its identity on the replacement.
 

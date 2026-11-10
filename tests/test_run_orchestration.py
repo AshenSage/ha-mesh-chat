@@ -10,8 +10,8 @@ from types import SimpleNamespace
 import pytest
 
 from lab import worker
-from lab.layout import LabError, digest
-from test_dualboot_lab import attested, Stub
+from lab.layout import FLASH_SIZE, TABLE_OFFSET, SECTOR, NETWORKS, LabError, digest
+from test_dualboot_lab import attested, Stub, table
 
 
 def profile(network):
@@ -33,11 +33,20 @@ def setup_run(tmp_path, monkeypatch):
     registry = {**attested(info), "backup": backup.name, "backup_sha256": digest(backup.read_bytes()),
                 "profiles": {n: profile(n) for n in ("meshcore", "meshtastic")}}
     worker.save_json(tmp_path / "registry.json", registry)
-    calls, observations, entered = [], [], []
+    calls, observations, entered, selected_registries = [], [], [], []
+    image = b"\xff" * TABLE_OFFSET + table() + b"\xff" * (FLASH_SIZE - TABLE_OFFSET - SECTOR)
+    class BackupStub(Stub):
+        def read_flash(self, offset, size):
+            if (offset, size) == (0, FLASH_SIZE):
+                return image
+            return super().read_flash(offset, size)
+        def flash_md5sum(self, offset, size):
+            assert (offset, size) == (0, FLASH_SIZE)
+            return hashlib.md5(image).hexdigest()
     class FakeRadio:
         def __init__(self, port, **flags):
             self.flags = flags
-            self.esp = Stub()
+            self.esp = BackupStub()
         def __enter__(self):
             entered.append(True)
             return self
@@ -48,9 +57,11 @@ def setup_run(tmp_path, monkeypatch):
         def select(self, network, record, data):
             assert self.flags == {"board_confirmed": True, "allow_boot_selection_write": True}
             calls.append(network)
-            changed = network != "meshcore"
+            selected_registries.append(record)
+            changed = NETWORKS[network] != info["selected_slot"]
             if changed:
                 worker.save_json(data / "last-selection.json", {"status": "written", "target": network, "mac": info["mac"]})
+                info["selected_slot"] = NETWORKS[network]
             return changed
     def probe(network, *_):
         value = observations.pop(0) if observations else profile(network)
@@ -65,7 +76,8 @@ def setup_run(tmp_path, monkeypatch):
         return worker.run(action, "fake", tmp_path, target, board_confirmed=True,
                           allow_boot_selection_write=True)
     return SimpleNamespace(run=run, calls=calls, observations=observations, entered=entered,
-                           info=info, registry=registry, backup=backup, data=tmp_path)
+                           info=info, registry=registry, backup=backup, data=tmp_path,
+                           image=image, selected_registries=selected_registries)
 
 
 @pytest.mark.parametrize("damage", ["missing", "corrupt"])
@@ -285,7 +297,7 @@ def test_r2_9_selector_nvs_drift_is_visible_warning_without_blocking(setup_run, 
     s.info["selector_nvs_md5"] = "normal boot may change this"
     assert s.run()["status"] == "switch_verified"
     warnings = [e for e in events if e.get("type") == "warning"]
-    assert warnings == [{"type": "warning", "code": "selector_nvs_changed_unvalidated"}]
+    assert warnings == [{"type": "warning", "code": "selector_nvs_changed_unvalidated"}] * 2
     lab = Lab(s.data)
     lab.active_run = {"status": "running"}
     lab.state["runs"].append(lab.active_run)

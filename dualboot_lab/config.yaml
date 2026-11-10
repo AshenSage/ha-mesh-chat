@@ -1,5 +1,5 @@
 name: Mesh Chat Dualboot Lab
-version: 0.1.0
+version: 0.1.1
 slug: mesh_chat_dualboot_lab
 description: Experimental Heltec V4 USB dualboot verification; no chat or schedules
 url: https://github.com/AshenSage/ha-mesh-chat
