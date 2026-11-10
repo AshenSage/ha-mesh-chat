@@ -16,20 +16,20 @@
 <section>
  <strong id="connection">Konfiguration wird geladen …</strong>
  <p class="warn">USB-Prüfungen unterbrechen die laufende Firmware. Nur das Labor darf auf den gewählten Port zugreifen. Noch kein Nachweis für stabile Hardwarefunktion.</p>
- <small>Voraussetzung: vorbereitete Dualboot-Installation mit MeshCore USB Companion und Meshtastic USB. Das BLE-Bundle der Referenz reicht für diese Prüfung nicht aus. Anleitung im Dokumentations-Tab des Add-ons.</small>
+ <small>Zum Wechseln ist eine vorbereitete Dualboot-Installation mit MeshCore USB Companion und Meshtastic USB nötig. Die Gerätesicherung funktioniert auch vorher mit einer einzelnen Firmware. Anleitung im Dokumentations-Tab des Add-ons.</small>
 </section>
 <section>
  <h2>1 · Prüfen und sichern</h2>
  <p>Die Prüfung liest Chip, Flashgrösse, Partitionen und Bootauswahl. Die Sicherung legt ein vollständiges Flash-Abbild im privaten Add-on-Speicher ab.</p>
- <div class="row"><button data-action="inspect">USB und Layout prüfen</button><button data-action="enrol">Testgerät registrieren + sichern</button></div>
- <p><small>Eine unbekannte Aufteilung wird angezeigt und für Schreibversuche gesperrt. Das Labor installiert keine Firmware.</small></p>
+ <div class="row"><button data-action="inspect">USB und Layout prüfen</button><button data-action="backup_current">16-MB-Gerätesicherung erstellen</button><button data-action="enrol">Testgerät registrieren + sichern</button></div>
+ <p><small>Die Gerätesicherung benötigt kein Dualboot-Layout und schreibt nichts in den Flash. Sie unterbricht kurz den Funkbetrieb und ersetzt keine vollständige HA-Projektsicherung. Eine unbekannte Aufteilung bleibt für Schreibversuche gesperrt. Das Labor installiert keine Firmware und stellt keine Sicherung wieder her.</small></p>
 </section>
 <section>
  <h2>2 · Firmware bestätigen und wechseln</h2>
  <p>Eine echte USB-Protokollantwort bestätigt die laufende Firmware. Identität und ausgewählte Einstellungen werden mit ihrem Ausgangszustand verglichen.</p>
  <label for="network">Ziel / Ausgangs-Firmware</label><select id="network"><option value="meshcore">MeshCore</option><option value="meshtastic">Meshtastic</option></select>
  <div class="row"><button data-action="baseline">Ausgangszustand der laufenden Firmware erfassen</button><button class="primary" data-action="switch">Zur gewählten Firmware wechseln</button></div>
- <p><small>Beide Firmwares vorher manuell starten und ihren Ausgangszustand erfassen. Ein Wechsel legt keinen Ausgangszustand an. Ein Rücklesen der Bootauswahl allein zählt nie als erfolgreicher Wechsel.</small></p>
+ <p><small>Vor jedem tatsächlichen Wechsel wird automatisch eine neue, geprüfte Gerätesicherung gespeichert. Scheitert sie, wird nicht gewechselt. Beide Profile bleiben auf dem Gerät; sie werden beim Wechsel nicht aus einem Backup zurückgeschrieben. Beide Firmwares vorher manuell starten und ihren Ausgangszustand erfassen. Ein Rücklesen der Bootauswahl allein zählt nie als erfolgreicher Wechsel.</small></p>
 </section>
 <section>
  <h2>3 · Wiederholbarkeit testen</h2>

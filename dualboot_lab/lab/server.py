@@ -171,7 +171,7 @@ class Lab:
     def start(self, action, config, network=None, cycles=1, reason=None):
         if self.task and not self.task.done():
             raise LabError("A USB job is already running")
-        if action not in ("inspect", "enrol", "baseline", "switch", "resnapshot", "cycle", "acknowledge_journal", "verify_selection", "prune_snapshots"):
+        if action not in ("inspect", "backup_current", "enrol", "baseline", "switch", "resnapshot", "cycle", "acknowledge_journal", "verify_selection", "prune_snapshots"):
             raise LabError("Unknown operation")
         if action in ("switch", "cycle"):
             require_closed_journal(self.data)
@@ -181,7 +181,7 @@ class Lab:
             raise LabError("Explicit retention_reviewed acknowledgement required")
         if not config.get("device") and action not in ("acknowledge_journal", "prune_snapshots"):
             raise LabError("Select a USB device in the app configuration")
-        if action != "inspect" and config.get("board_confirmed") is not True:
+        if action not in ("inspect", "backup_current") and config.get("board_confirmed") is not True:
             raise LabError("Confirm Heltec V4 ESP32-S3R2 / 16 MB / 868 MHz in the app configuration")
         if action in ("switch", "cycle") and config.get("allow_boot_selection_write") is not True:
             raise LabError("Enable experimental boot-selection writes in the app configuration")

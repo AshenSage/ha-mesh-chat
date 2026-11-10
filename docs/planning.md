@@ -18,7 +18,7 @@ The [feature requirements](requirements.md) and [automatic switching requirement
 
 ## Recorded decisions
 
-- **Backup:** capture profiles after setup/changes and before updates; daily complete project backups, retaining the latest 10 successful states per radio. Include HA backup support and protected downloads; show inactive-profile snapshot age without switching just for backup.
+- **Backup:** all device/profile backup and recovery through HA. Capture a fresh verified recovery point before every actual network transition; a failure must block switching. Capture profiles after setup/changes and before updates; daily complete project backups, retaining the latest 10 successful states per radio. Include HA backup support and protected downloads; show inactive-profile snapshot age without switching just for backup. Normal dualboot selection retains both device profiles and does not restore/reflash them.
 - **HA outage:** pause scheduled switching and retain the last firmware while powered. On return, retrieve and durably save available received messages before applying the current schedule. Defer automatic switching on synchronization/storage failure. See [recovery requirements](requirements.md#ha-outage-and-message-recovery).
 
 ## Prove the foundation

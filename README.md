@@ -25,6 +25,8 @@ The core of this repository is now the [Dualboot Lab](dualboot_lab/DOCS.md):
 5. Reconnect, check the target protocol twice and compare identity/selected settings with its baseline.
 6. Run bounded round-trip tests and export a JSON report. Stop on the first failure; never silently retry or resume after a restart.
 
+The lab can also save a verified private 16 MB preparation backup directly from HA while the board still runs a single firmware. Every actual lab transition now requires a fresh verified device snapshot before changing boot selection; any backup failure blocks that write. Both profiles remain on the board and are not restored or reflashed during ordinary switching. This is a device backup, not the later complete project backup/message-recovery workflow. Hardware validation remains pending.
+
 **Success gate:** ordinary switching must work from HA without touching the board, with repeatable results, preserved profiles, restart/reconnect handling and evidence on both target hosts. Initial provisioning or recovery may use buttons; needing a button during an ordinary switch fails the gate. See the [test plan and evidence template](docs/dualboot-proof.md).
 
 Add this repository URL in the HA app/add-on store, then install **Mesh Chat Dualboot Lab**. It is an experimental Supervisor app, **not a HACS integration**. Start manually; write access is off by default. See [installation and firmware preparation](dualboot_lab/DOCS.md).
