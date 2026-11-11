@@ -19,7 +19,7 @@
    store.begin();
 --- a/variants/heltec_v4/platformio.ini
 +++ b/variants/heltec_v4/platformio.ini
-@@ -181,23 +181,74 @@
+@@ -181,23 +181,75 @@
  
  [env:heltec_v4_companion_radio_usb]
  extends = heltec_v4_oled
@@ -93,6 +93,7 @@
 -lib_deps =
 -  ${heltec_v4_oled.lib_deps}
 -  densaugeo/base64 @ ~1.4.0
++  +<../examples/companion_radio/LabUSBPhy.c>
 +lib_deps =
 +  SPI
 +  Wire
@@ -137,32 +138,44 @@
  #endif
 --- /dev/null
 +++ b/examples/companion_radio/LabUSBPhy.h
-@@ -0,0 +1,28 @@
+@@ -0,0 +1,15 @@
 +#pragma once
++#include <sdkconfig.h>
 +
-+// Bench-only USB handoff for the pinned Arduino 2.0.17 / ESP-IDF 4.4.7 build.
-+// The bootloader/selector may leave the shared PHY assigned to USB-OTG.
-+// HWCDC::begin() in that core configures Serial/JTAG pads but not the RTC mux.
-+// Reclaim the PHY before starting Serial. All operations affect volatile
-+// peripherals only; no eFuse, flash, NVS, OTA or radio operation occurs here.
++// Bench-only handoff for the pinned ESP32-S3 hardware CDC environment.
 +#if !defined(CONFIG_IDF_TARGET_ESP32S3) || !ARDUINO_USB_MODE || !ARDUINO_USB_CDC_ON_BOOT
 +#error "Lab USB PHY handoff requires ESP32-S3 hardware USB CDC on boot"
 +#endif
 +
-+#include <Arduino.h>
++#ifdef __cplusplus
++extern "C" {
++#endif
++void meshchat_lab_prepare_usb_phy(void);
++#ifdef __cplusplus
++}
++#endif
+--- /dev/null
++++ b/examples/companion_radio/LabUSBPhy.c
+@@ -0,0 +1,22 @@
++// Volatile USB handoff only: no eFuse, flash, NVS, OTA or radio operation.
++// Compile as C: the pinned ESP-IDF USB HAL contains volatile aggregate copies
++// which are legal C but do not compile as C++.
++#ifdef MESHCHAT_LAB_USB_PHY
++#include "LabUSBPhy.h"
 +#include <driver/periph_ctrl.h>
 +#include <hal/usb_phy_ll.h>
 +#include <soc/periph_defs.h>
++#include <esp_rom_sys.h>
 +
-+static inline void meshchat_lab_prepare_usb_phy() {
-+  // Stop a previously selected ROM/OTG console before claiming the shared PHY.
++void meshchat_lab_prepare_usb_phy(void) {
++  // Stop the ROM/OTG console before claiming the shared internal PHY.
 +  periph_module_reset(PERIPH_USB_MODULE);
 +  periph_module_disable(PERIPH_USB_MODULE);
 +  usb_phy_ll_int_jtag_enable(&USB_SERIAL_JTAG);
 +
-+  // Present a real detach interval so the host can discard the previous
-+  // controller's USB address/descriptors before the hardware CDC reconnects.
++  // Present a real detach interval for the host's old address/descriptors.
 +  USB_SERIAL_JTAG.conf0.usb_pad_enable = 0;
-+  delay(30);
++  esp_rom_delay_us(30000);
 +  usb_phy_ll_int_jtag_enable(&USB_SERIAL_JTAG);
 +}
++#endif

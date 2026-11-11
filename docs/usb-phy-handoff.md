@@ -17,6 +17,10 @@ PHY for Serial/JTAG, disconnects its USB pads for 30 ms, and reconnects before
 `Serial.begin()`. A target/mode compile guard confines the hook to the pinned
 ESP32-S3 hardware CDC environment. These are volatile peripheral operations;
 the hook contains no eFuse, flash, NVS, OTA selection, profile or radio writes.
+The hook is compiled as C and exposed through a C ABI declaration to the
+Arduino C++ entry point. The pinned HAL contains volatile aggregate copies
+which are legal in C but fail in C++; no permissive compiler flags or HAL
+modifications are used to hide this incompatibility.
 
 Sources used for the pinned implementation:
 
