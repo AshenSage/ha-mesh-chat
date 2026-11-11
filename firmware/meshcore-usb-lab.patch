@@ -1,26 +1,31 @@
 --- a/examples/companion_radio/main.cpp
 +++ b/examples/companion_radio/main.cpp
-@@ -178,7 +178,7 @@
-   store.begin();
-   the_mesh.begin();
+@@ -1,2 +1,5 @@
+ #include <Arduino.h>   // needed for PlatformIO
++#ifdef MESHCHAT_LAB_USB_PHY
++#include "LabUSBPhy.h"
++#endif
+ #include <Mesh.h>
+@@ -135,2 +138,5 @@
+ void setup() {
++#ifdef MESHCHAT_LAB_USB_PHY
++  meshchat_lab_prepare_usb_phy();
++#endif
+   Serial.begin(115200);
+@@ -180,3 +186,3 @@
  #elif defined(ESP32)
 -  SPIFFS.begin(true);
 +  SPIFFS.begin(true, "/spiffs", 10, "mc_spiffs");
    store.begin();
-   the_mesh.begin();
- #else
 --- a/variants/heltec_v4/platformio.ini
 +++ b/variants/heltec_v4/platformio.ini
-@@ -181,23 +181,73 @@
+@@ -181,23 +181,74 @@
  
  [env:heltec_v4_companion_radio_usb]
  extends = heltec_v4_oled
 -build_flags =
 -  ${heltec_v4_oled.build_flags}
 -  -I examples/companion_radio/ui-new
--  -D MAX_CONTACTS=350
--  -D MAX_GROUP_CHANNELS=40
--  -D DISPLAY_CLASS=SSD1306Display
 +platform = platformio/espressif32@6.11.0
 +platform_packages =
 +  platformio/framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b
@@ -72,21 +77,22 @@
 +  -D PIN_BOARD_SDA=17
 +  -D PIN_BOARD_SCL=18
 +  -D PIN_OLED_RESET=21
-+  -D MAX_CONTACTS=350
-+  -D MAX_GROUP_CHANNELS=40
+   -D MAX_CONTACTS=350
+   -D MAX_GROUP_CHANNELS=40
+-  -D DISPLAY_CLASS=SSD1306Display
    -D ENABLE_USB_INTERFACE
 -; NOTE: DO NOT ENABLE -->  -D MESH_PACKET_LOGGING=1
 -; NOTE: DO NOT ENABLE -->  -D MESH_DEBUG=1
 -build_src_filter = ${heltec_v4_oled.build_src_filter}
 -  +<helpers/ui/SSD1306Display.cpp>
 -  +<helpers/ui/MomentaryButton.cpp>
--  +<../examples/companion_radio/*.cpp>
++  -D MESHCHAT_LAB_USB_PHY=1
++build_src_filter = ${Heltec_lora32_v4.build_src_filter}
+   +<../examples/companion_radio/*.cpp>
 -  +<../examples/companion_radio/ui-new/*.cpp>
 -lib_deps =
 -  ${heltec_v4_oled.lib_deps}
 -  densaugeo/base64 @ ~1.4.0
-+build_src_filter = ${Heltec_lora32_v4.build_src_filter}
-+  +<../examples/companion_radio/*.cpp>
 +lib_deps =
 +  SPI
 +  Wire
@@ -129,3 +135,34 @@
  #else
    #error "need to implement format()"
  #endif
+--- /dev/null
++++ b/examples/companion_radio/LabUSBPhy.h
+@@ -0,0 +1,28 @@
++#pragma once
++
++// Bench-only USB handoff for the pinned Arduino 2.0.17 / ESP-IDF 4.4.7 build.
++// The bootloader/selector may leave the shared PHY assigned to USB-OTG.
++// HWCDC::begin() in that core configures Serial/JTAG pads but not the RTC mux.
++// Reclaim the PHY before starting Serial. All operations affect volatile
++// peripherals only; no eFuse, flash, NVS, OTA or radio operation occurs here.
++#if !defined(CONFIG_IDF_TARGET_ESP32S3) || !ARDUINO_USB_MODE || !ARDUINO_USB_CDC_ON_BOOT
++#error "Lab USB PHY handoff requires ESP32-S3 hardware USB CDC on boot"
++#endif
++
++#include <Arduino.h>
++#include <driver/periph_ctrl.h>
++#include <hal/usb_phy_ll.h>
++#include <soc/periph_defs.h>
++
++static inline void meshchat_lab_prepare_usb_phy() {
++  // Stop a previously selected ROM/OTG console before claiming the shared PHY.
++  periph_module_reset(PERIPH_USB_MODULE);
++  periph_module_disable(PERIPH_USB_MODULE);
++  usb_phy_ll_int_jtag_enable(&USB_SERIAL_JTAG);
++
++  // Present a real detach interval so the host can discard the previous
++  // controller's USB address/descriptors before the hardware CDC reconnects.
++  USB_SERIAL_JTAG.conf0.usb_pad_enable = 0;
++  delay(30);
++  usb_phy_ll_int_jtag_enable(&USB_SERIAL_JTAG);
++}
