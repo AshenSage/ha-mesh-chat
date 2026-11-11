@@ -119,6 +119,7 @@ def main():
             result = subprocess.run([sys.executable, "-m", "platformio", "run", "-e", ENVIRONMENT],
                                     cwd=source, stdout=stream, stderr=subprocess.STDOUT)
         if result.returncode:
+            print(log.read_text(errors="replace")[-12000:], file=sys.stderr)
             raise SystemExit(f"Build failed; inspect {log}")
         binary = source / ".pio/build" / ENVIRONMENT / "firmware.bin"
         image = binary.read_bytes()

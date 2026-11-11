@@ -28,6 +28,7 @@ jobs:
           path: firmware-work/MeshCore
       - run: python tools/prepare_meshcore_usb.py firmware-work/MeshCore --build
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
         with:
           name: meshcore-usb-lab-experimental
           path: firmware-work/output/
