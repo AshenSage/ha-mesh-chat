@@ -38,7 +38,10 @@ def audit_filesystems(source):
     other file extensions and indirect/wrapped storage calls are unreviewed.
     """
     allowed = {(r["path"], r["text"]) for r in json.loads(AUDIT.read_text())}
-    names = subprocess.check_output(["git", "ls-files"], cwd=source, text=True).splitlines()
+    # The versioned patch may add a managed header which is still untracked
+    # in the upstream checkout. Audit those files as well as tracked sources.
+    names = subprocess.check_output(["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+                                    cwd=source, text=True).splitlines()
     for name in names:
         if Path(name).suffix.lower() not in (".cpp", ".h", ".c", ".ino"):
             continue
@@ -116,6 +119,7 @@ def main():
             result = subprocess.run([sys.executable, "-m", "platformio", "run", "-e", ENVIRONMENT],
                                     cwd=source, stdout=stream, stderr=subprocess.STDOUT)
         if result.returncode:
+            print(log.read_text(errors="replace")[-12000:], file=sys.stderr)
             raise SystemExit(f"Build failed; inspect {log}")
         binary = source / ".pio/build" / ENVIRONMENT / "firmware.bin"
         image = binary.read_bytes()
@@ -133,7 +137,8 @@ def main():
                     "build_log_sha256": hashlib.sha256(log.read_bytes()).hexdigest(), "sha256": hashlib.sha256(image).hexdigest(),
                     "size": len(image), "flash_offset": "0x220000", "hardware_validated": False,
                     "patches": ["factory reset preserves shared NVS", "isolated mc_spiffs mount", "lab partition table", "USB companion",
-                                "headless: OLED UI omitted", "external sensors/GPS omitted for bench proof"]}
+                                "headless: OLED UI omitted", "external sensors/GPS omitted for bench proof",
+                                "explicit Serial/JTAG USB PHY handoff before Serial.begin"]}
         (args.output / "meshcore-build.json").write_text(json.dumps(metadata, indent=2) + "\n")
     print("Prepared experimental USB source. Hardware validation remains pending.")
 

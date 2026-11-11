@@ -64,6 +64,13 @@ def test_c1_changed_or_last_section_layout_is_an_explicit_error(checkout):
     assert path.read_text() == changed
 
 
+def test_new_untracked_header_is_included_in_storage_audit(checkout):
+    source, _, _, _ = checkout
+    (source / "new_managed_header.h").write_text("esp_flash_write(chip, data, 0, size);\n")
+    with pytest.raises(SystemExit, match="Unreviewed filesystem call"):
+        builder.audit_filesystems(source)
+
+
 @pytest.mark.parametrize("call", ["nvs_flash_erase();", 'nvs_flash_erase_partition("nvs");',
     "esp_partition_erase_range(p, 0, size);", "esp_partition_write(p, 0, bytes, size);",
     "esp_vfs_spiffs_register(&config);", "esp_spiffs_format(label);", "esp_littlefs_format(label);"])
